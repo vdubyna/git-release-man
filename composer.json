@@ -1,5 +1,5 @@
 {
-    "name": "mirocode/git-release-man",
+    "name": "vdubyna/git-release-man",
     "description": "Git release manager with support of pull requests",
     "type": "library",
     "license": "MIT",
