@@ -2,6 +2,7 @@
     "name": "mirocode/git-release-man",
     "description": "Git release manager with support of pull requests",
     "type": "library",
+    "license": "MIT",
     "require": {
         "symfony/console": "^3.3",
         "symfony/yaml": "^3.3",
