@@ -1,0 +1,27 @@
+{
+    "name": "mirocode/git-release-man",
+    "description": "Git release manager with support of pull requests",
+    "type": "library",
+    "require": {
+        "symfony/console": "^3.3",
+        "symfony/yaml": "^3.3",
+        "knplabs/github-api": "^2.4",
+        "php-http/guzzle6-adapter": "^1.1",
+        "composer/semver": "^1.4",
+        "symfony/process": "^3.3"
+    },
+    "authors": [
+        {
+            "name": "Volodymyr Dubyna",
+            "email": "vladmir.dubyna@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "": "src/"
+        }
+    },
+    "bin": [
+        "bin/git-release-man"
+    ]
+}
