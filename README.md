@@ -8,6 +8,18 @@
 
 ./bin/git-release-man git:feature open
 
+#### Close Feature
+
+Removes feature branch from remote repository
+
+./bin/git-release-man git:feature close
+
+#### Reopen Feature
+
+Removes labels from pull request. It exclude feature from builds.
+
+./bin/git-release-man git:feature reopen
+
 #### List available features
 
 ./bin/git-release-man git:feature list
