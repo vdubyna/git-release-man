@@ -43,8 +43,8 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
         $repository = $this->getConfiguration()->getRepositoryName();
 
         $branches = $this->getApiClient()
-             ->repository()
-             ->branches($username, $repository);
+                         ->repository()
+                         ->branches($username, $repository);
 
         $branches = array_map(function ($branch) {
             return $branch['name'];
@@ -81,9 +81,9 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
         $masterBranchInfo = $this->getApiClient()
-             ->gitData()
-             ->references()
-             ->show($username, $repository, "heads/{$masterBranch}");
+                                 ->gitData()
+                                 ->references()
+                                 ->show($username, $repository, "heads/{$masterBranch}");
 
         $this->getApiClient()
              ->gitData()
@@ -139,8 +139,8 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
             ->labels()
             ->all($username, $repository, $pullRequestNumber);
 
-        return array_map(function($label) {
-           return $label['name'];
+        return array_map(function ($label) {
+            return $label['name'];
         }, $labels);
     }
 
@@ -158,9 +158,9 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
         $pullRequests = $client
             ->issues()
             ->all(
-               $username,
-               $repository,
-               array('state' => 'open', 'labels' => $label)
+                $username,
+                $repository,
+                array('state' => 'open', 'labels' => $label)
             );
 
         $pullRequests = array_filter($pullRequests, function ($pullRequest) {
@@ -168,9 +168,9 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
         });
 
         // Replace issue object with pull request object
-        return array_map(function($pullRequest) use ($client, $username, $repository) {
-                return $client->pullRequest()->show($username, $repository, $pullRequest['number']);
-            }, $pullRequests);
+        return array_map(function ($pullRequest) use ($client, $username, $repository) {
+            return $client->pullRequest()->show($username, $repository, $pullRequest['number']);
+        }, $pullRequests);
     }
 
     /**
@@ -194,7 +194,7 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
                     'state' => 'open',
                     'type'  => 'pr',
                     'head'  => "{$username}:{$featureName}",
-                    'base'  => $masterBranch
+                    'base'  => $masterBranch,
                 )
             );
 
@@ -322,14 +322,15 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
         if (empty($version)) {
             $version = Configuration::DEFAULT_VERSION;
         }
+
         return $version;
     }
 
     public function mergeRemoteBranches($targetBranch, $sourceBranch)
     {
-        $client       = $this->getApiClient();
-        $repository   = $this->getConfiguration()->getRepositoryName();
-        $username     = $this->getConfiguration()->getUsername();
+        $client     = $this->getApiClient();
+        $repository = $this->getConfiguration()->getRepositoryName();
+        $username   = $this->getConfiguration()->getUsername();
 
         $client->repository()->merge($username, $repository, $targetBranch, $sourceBranch);
     }
@@ -353,7 +354,16 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
         $repository = $this->getConfiguration()->getRepositoryName();
         $username   = $this->getConfiguration()->getUsername();
 
-        $client->repository()->releases()->create($username, $repository, array('tag_name' => $release));
+        $client->repository()
+               ->releases()
+               ->create(
+                   $username,
+                   $repository,
+                   array(
+                       'tag_name' => $release,
+                       'name'     => $release,
+                   )
+               );
     }
 
     public function getRCBranchesListByRelease($releaseVersion)
@@ -364,7 +374,7 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
 
         $branches = $client->repository()->branches($username, $repository);
 
-        return array_filter($branches, function($branch) use ($releaseVersion) {
+        return array_filter($branches, function ($branch) use ($releaseVersion) {
             return (strpos($branch, $releaseVersion . '-RC') === 0);
         });
     }
@@ -387,9 +397,9 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
         $username   = $this->getConfiguration()->getUsername();
 
         $latestTestReleases = $client->repository()
-             ->releases()
-             ->all($username, $repository, array('sort' => ''));
-        $latestTestReleases = array_filter($latestTestReleases, function($testRelease) {
+                                     ->releases()
+                                     ->all($username, $repository);
+        $latestTestReleases = array_filter($latestTestReleases, function ($testRelease) {
             return ($testRelease['prerelease'] == true);
         });
 
@@ -404,8 +414,18 @@ class GithubAdapter extends AbstractGitAdapter implements GitAdapter
         $repository = $this->getConfiguration()->getRepositoryName();
         $username   = $this->getConfiguration()->getUsername();
 
+        $branchInfo = $client->repository()->branches($username, $repository, $release);
+        $release    .= '+' . date('Y-m-d_h-i-s');
+
         $client->repository()
                ->releases()
-               ->create($username, $repository, array('tag_name' => $release, 'prerelease' => true));
+               ->create($username, $repository,
+                   array(
+                       'tag_name'         => $release,
+                       'name'             => $release,
+                       'prerelease'       => true,
+                       'target_commitish' => $branchInfo['commit']['sha'],
+                   )
+               );
     }
 }

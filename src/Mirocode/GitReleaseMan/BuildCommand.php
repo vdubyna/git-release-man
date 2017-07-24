@@ -62,7 +62,7 @@ class BuildCommand extends Command
             $this->getStyleHelper()->success("Branch \"{$sourceBranch}\" merged");
         }
         // TODO Rollback process
-        $this->getGitAdapter()->createTestReleaseTag($releaseCandidateVersion . '+' . date('Y-m-d_h-i-s'));
+        $this->getGitAdapter()->createTestReleaseTag($releaseCandidateVersion);
 
         $this->getStyleHelper()->success("New Release Candidate \"{$releaseCandidateVersion}\" is ready for testing");
     }
