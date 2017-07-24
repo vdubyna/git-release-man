@@ -26,14 +26,14 @@ The workflow looks as follows:
 #### Init configuration
 
 ```
-./bin/git-release-man git:build init
+./bin/git-release-man git-release:build init
 ```
 
 
 #### Open new Feature
 
 ```
-./bin/git-release-man git:feature open --name FEATURE_NAME_HERE
+./bin/git-release-man git-release:feature open --name FEATURE_NAME_HERE
 ```
 
 #### Close Feature
@@ -41,7 +41,7 @@ The workflow looks as follows:
 Removes feature branch from remote repository
 
 ```
-./bin/git-release-man git:feature close --name FEATURE_NAME_HERE
+./bin/git-release-man git-release:feature close --name FEATURE_NAME_HERE
 ```
 
 #### Reopen Feature
@@ -49,47 +49,47 @@ Removes feature branch from remote repository
 Removes labels from pull request. It exclude feature from builds.
 
 ```
-./bin/git-release-man git:feature reopen --name FEATURE_NAME_HERE
+./bin/git-release-man git-release:feature reopen --name FEATURE_NAME_HERE
 ```
 
 #### List available features
 
 ```
-./bin/git-release-man git:feature list
+./bin/git-release-man git-release:feature list
 ```
 
 #### Mark Feature ready for testing
 
 ```
-./bin/git-release-man git:feature test --name FEATURE_NAME_HERE
+./bin/git-release-man git-release:feature test --name FEATURE_NAME_HERE
 ```
 
 #### Mark Feature ready for release
 
 ```
-./bin/git-release-man git:feature release --name FEATURE_NAME_HERE
+./bin/git-release-man git-release:feature release --name FEATURE_NAME_HERE
 ```
 
 #### Create test release (Release Candidate) Tag and Branch
 
 ```
-./bin/git-release-man git:build test
+./bin/git-release-man git-release:build test
 ```
 
 #### Merge pull requests into master branch, create release tag
 
 ```
-./bin/git-release-man git:build release
+./bin/git-release-man git-release:build release
 ```
 
 #### Get latest release tag
 
 ```
-./bin/git-release-man git:build latest-release
+./bin/git-release-man git-release:build latest-release
 ```
 
 #### Get latest test release tag
 
 ```
-./bin/git-release-man git:build latest-test-release
+./bin/git-release-man git-release:build latest-test-release
 ```
