@@ -1,16 +1,23 @@
 language: php
 
 php:
-  - 5.3
   - 5.6
-  - 7
-
-matrix:
-  allow_failures:
-    - php: 7
+  - 7.0
+  - 7.1
 
 install:
   - composer install --prefer-source --no-interaction
-
+before_script:
+  - wget https://github.com/clue/phar-composer/releases/download/v1.0.0/phar-composer.phar
+  - chmod 775 phar-composer.phar
 script:
-  - phpunit --coverage-text
+  - php phar-composer.phar build
+
+deploy:
+  provider: releases
+  api_key:
+    secure: hp6V+e22LawxA/QcsDH6ltTYLxzXdj14kiSATnO735Yl2ZwddzlGaNdcaZiQEMJEjbE29PbL6Jqj6LBRALuLvudyhpz/RNbiwLEH98giD09aXn2QtDKyLCRTMSKzb/DaMDz571bSKe2SC9ZB+CU9qUAQj2cW9LJpH3en0UDkeX+PRjH0anpZeHPD/bsc6AzC8gwQdvbbKwLModWlJCL94FC50nUjR0tKE1B942i6eGMJqS8nR5WfPcr6px36h9kRtN8EL+bhvzbnsHuTSKko6QNvdgg24NW4wy6dDgZbtn7iPQhDMCbGiTs3xV2uQK9hGLVM9VB0IRL1UA7tnFXr5oBh0OwnZVyIZFtJeAXyziJqr4K5YI4f1Gc1C2T2guAwF8aYClz58/9S+6e0arWHh15nTPBqLNJkOoPxMBh+1TZKy4IwdjW7bJxP9YNQpL7HIqg2a4AtCngntBbLS/V4WD9JQWbS9f5xjmd5XKA4FSU0cT99sPsBH+D5J3o6a4Mb7P+PNrK+Vp3pGoiBy0jq/S+lSQqpFlyBFCFI2mZxFbwOwK6zcxqEncbCDQ9zVawYoNX7gFR/fw8V8pnaZZhC1xjBomvuNfkF0uTwNP9hwseH9KJfGWUqf66Hn2FG2AT6OwIjTP5/3j4oSHcxmbe32+Q+14erd7Nt3Pfl50AuksU=
+  file: "git-release-man.phar"
+  skip_cleanup: true
+  on:
+    tags: true
