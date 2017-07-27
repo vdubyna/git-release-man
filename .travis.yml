@@ -25,5 +25,7 @@ deploy:
   file: "git-release-man.phar"
   skip_cleanup: true
   on:
-    branch: master
+    branches:
+      only:
+        - master
     tags: true
