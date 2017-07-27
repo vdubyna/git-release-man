@@ -21,7 +21,8 @@ The workflow looks as follows:
 
 ### Install
 
-wge
+Go to latest release and download `git-release-man.phar`
+https://github.com/vdubyna/git-release-man/releases/latest
 
 ### Usage
 
@@ -94,4 +95,14 @@ Removes labels from pull request. It exclude feature from builds.
 
 ```bash
 ./bin/git-release-man git-release:build latest-test-release
+```
+
+
+### Development commands
+
+```bash
+# generate secure token for travis, is required to deploy release
+travis encrypt api_key_here
+# Add api key variable to env
+travis env set GITHUBKEY api_key_here --private -r vdubyna/git-release-man
 ```
