@@ -1,16 +1,11 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: vdubyna
- * Date: 7/21/17
- * Time: 15:15
- */
 
-namespace Mirocode\GitReleaseMan;
+namespace Mirocode\GitReleaseMan\GitAdapter;
 
-use \Mirocode\GitReleaseMan\Configuration;
+use Mirocode\GitReleaseMan\Configuration;
+use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 
-abstract class AbstractGitAdapter implements GitAdapter
+abstract class GitAdapterAbstract implements GitAdapterInterface
 {
     protected $configuration;
 
@@ -20,7 +15,7 @@ abstract class AbstractGitAdapter implements GitAdapter
     }
 
     /**
-     * @return \Mirocode\GitReleaseMan\Configuration
+     * @return Configuration
      */
     public function getConfiguration()
     {

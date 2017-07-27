@@ -8,6 +8,7 @@
 
 namespace Mirocode\GitReleaseMan;
 
+use Mirocode\GitReleaseMan\GitAdapter\GithubAdapter;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
@@ -101,5 +102,15 @@ class Configuration
     public function isConfigurationExists()
     {
         return is_file($this->getConfigurationPath());
+    }
+
+    /**
+     * Todo add strategy ppattern
+     *
+     * @return string
+     */
+    public function getGitAdapterName()
+    {
+        return \Mirocode\GitReleaseMan\GitAdapter\GithubAdapter::class;
     }
 }

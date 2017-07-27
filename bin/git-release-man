@@ -4,8 +4,8 @@
 require __DIR__.'/../vendor/autoload.php';
 
 use Symfony\Component\Console\Application;
-use Mirocode\GitReleaseMan\FeatureCommand;
-use Mirocode\GitReleaseMan\BuildCommand;
+use Mirocode\GitReleaseMan\Command\FeatureCommand;
+use Mirocode\GitReleaseMan\Command\BuildCommand;
 
 $application = new Application();
 

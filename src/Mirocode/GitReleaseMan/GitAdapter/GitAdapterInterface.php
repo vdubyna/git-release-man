@@ -6,10 +6,10 @@
  * Time: 15:13
  */
 
-namespace Mirocode\GitReleaseMan;
+namespace Mirocode\GitReleaseMan\GitAdapter;
 
 
-interface GitAdapter
+interface GitAdapterInterface
 {
     /**
      * @param $branchName

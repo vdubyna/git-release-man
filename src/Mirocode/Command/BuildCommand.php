@@ -1,8 +1,8 @@
 <?php
 
-namespace Mirocode\GitReleaseMan;
+namespace Mirocode\GitReleaseMan\Command;
 
-use Mirocode\GitReleaseMan\AbstractCommand as Command;
+use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Mirocode\GitReleaseMan\ExitException as ExitException;
 
@@ -19,9 +19,9 @@ class BuildCommand extends Command
     protected function configure()
     {
         $this->setName('git-release:build')
-            ->addArgument('action', InputArgument::REQUIRED, 'Action')
-            ->setDescription('Init git release man')
-            ->setHelp('Init git release man');
+             ->addArgument('action', InputArgument::REQUIRED, 'Action')
+             ->setDescription('Init git release man')
+             ->setHelp('Init git release man');
     }
 
     public function init()

@@ -1,17 +1,10 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: vdubyna
- * Date: 6/17/17
- * Time: 12:07
- */
 
-namespace Mirocode\GitReleaseMan;
+namespace Mirocode\GitReleaseMan\Command;
 
-use Exception;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Mirocode\GitReleaseMan\AbstractCommand as Command;
+use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Mirocode\GitReleaseMan\ExitException as ExitException;
 
@@ -52,7 +45,7 @@ class FeatureCommand extends Command
     /**
      * We always start new features from master branch!
      *
-     * @throws \Mirocode\GitReleaseMan\ExitException
+     * @throws ExitException
      */
     public function open()
     {
@@ -71,7 +64,7 @@ class FeatureCommand extends Command
      * Remove feature branch from remote repository
      * Close PR if needed
      *
-     * @throws \Mirocode\GitReleaseMan\ExitException
+     * @throws ExitException
      */
     public function close()
     {
@@ -100,7 +93,7 @@ class FeatureCommand extends Command
         $features = $this->getGitAdapter()->getFeaturesList();
         $headers  = array('Feature Name', 'Pull Request', 'Labels', 'Compare with master');
 
-        $rows = array_map(function($feature) {
+        $rows = array_map(function ($feature) {
             $pullRequest        = $this->getGitAdapter()->getPullRequestByFeature($feature);
             $pullRequestMessage = '';
             $labelsMessage      = '';
@@ -112,7 +105,7 @@ class FeatureCommand extends Command
                     "{$pullRequest['html_url']}";
             }
 
-            $compareInfo = $this->getGitAdapter()->compareFeatureWithMaster($feature);
+            $compareInfo    = $this->getGitAdapter()->compareFeatureWithMaster($feature);
             $compareMessage = "Status: {$compareInfo['status']}\n" .
                 "Behind: {$compareInfo['behind_by']} commits\n" .
                 "Ahead: {$compareInfo['ahead_by']} commits\n" .
@@ -123,7 +116,7 @@ class FeatureCommand extends Command
                 $feature,
                 $pullRequestMessage,
                 $labelsMessage,
-                $compareMessage
+                $compareMessage,
             );
         }, $features);
 
@@ -158,7 +151,7 @@ class FeatureCommand extends Command
     /**
      * Mark Feature ready for release
      **
-     * @throws \Mirocode\GitReleaseMan\ExitException
+     * @throws ExitException
      */
     public function release()
     {
@@ -189,7 +182,7 @@ class FeatureCommand extends Command
 
     /**
      * @return string
-     * @throws Exception
+     * @throws ExitException
      */
     public function getFeatureName()
     {
@@ -207,7 +200,7 @@ class FeatureCommand extends Command
     /**
      * @param mixed $featureName
      *
-     * @throws Exception
+     * @throws ExitException
      */
     public function setFeatureName($featureName)
     {

@@ -6,13 +6,17 @@
  * Time: 15:10
  */
 
-namespace Mirocode\GitReleaseMan;
+namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Composer\Semver\Semver;
 use Github\Client;
 use InvalidArgumentException;
+use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
+use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
+use Mirocode\GitReleaseMan\Configuration;
+use Mirocode\GitReleaseMan\Version;
 
-class GithubAdapter extends AbstractGitAdapter implements GitAdapter
+class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
 {
     /**
      * @var Client

@@ -6,28 +6,26 @@
  * Time: 12:07
  */
 
-namespace Mirocode\GitReleaseMan;
+namespace Mirocode\GitReleaseMan\Command;
 
+use Mirocode\GitReleaseMan\Configuration;
+use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 use Mirocode\GitReleaseMan\ExitException as ExitException;
 use Mirocode\GitReleaseMan\Configuration as GitReleaseManConfiguration;
-use \Github\Client as GithubClient;
 
-class AbstractCommand extends Command
+abstract class AbstractCommand extends Command
 {
     protected $allowedActions = array();
 
     protected $configuration;
 
-    protected $apiClient;
-
     /**
-     * @var GitAdapter
+     * @var GitAdapterInterface
      */
     protected $gitAdapter;
 
@@ -37,10 +35,15 @@ class AbstractCommand extends Command
     protected $styleHelper;
 
     /**
-     * @return GitAdapter
+     * @return GitAdapterInterface
      */
     public function getGitAdapter()
     {
+        if (empty($this->gitAdapter)) {
+            $gitAdapterName   = $this->getConfiguration()->getGitAdapterName();
+            $this->gitAdapter = new $gitAdapterName($this->getConfiguration());
+        }
+
         return $this->gitAdapter;
     }
 
@@ -49,33 +52,18 @@ class AbstractCommand extends Command
      */
     public function getConfiguration()
     {
-        return $this->configuration;
-    }
-
-    /**
-     * @param $githubKey
-     *
-     * @return GithubClient
-     */
-    public function getApiClient()
-    {
-        $githubKey = $this->getConfiguration()->getToken();
-        if (empty($this->apiClient)) {
-            $client = new GithubClient();
-            $client->authenticate($githubKey, null, GithubClient::AUTH_HTTP_TOKEN);
-            $this->apiClient = $client;
+        if (empty($this->configuration)) {
+            $this->configuration = new GitReleaseManConfiguration();
         }
 
-        return $this->apiClient;
+        return $this->configuration;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->configuration = new GitReleaseManConfiguration();
         $this->styleHelper = new SymfonyStyle($input, $output);
-        $this->gitAdapter = new GithubAdapter($this->configuration);
-        $action = $input->getArgument('action');
-        $methodName = $this->allowedActions[$action];
+        $action            = $input->getArgument('action');
+        $methodName        = $this->allowedActions[$action];
 
         if (key_exists($action, $this->allowedActions) && method_exists($this, $this->allowedActions[$action])) {
             try {
@@ -109,10 +97,10 @@ class AbstractCommand extends Command
     }
 
     /**
-     * @param string          $message
+     * @param string $message
      *
      * @return void
-     * @throws \Mirocode\GitReleaseMan\ExitException
+     * @throws ExitException
      */
     protected function confirmOrExit($message)
     {
@@ -123,7 +111,7 @@ class AbstractCommand extends Command
 
     /**
      * @return string
-     * @throws \Mirocode\GitReleaseMan\ExitException
+     * @throws ExitException
      */
     protected function askAndGetValueOrExit($message)
     {
