@@ -29,14 +29,14 @@ https://github.com/vdubyna/git-release-man/releases/latest
 #### Init configuration
 
 ```bash
-./bin/git-release-man git-release:build init
+./git-release-man.phar git-release:build init
 ```
 
 
 #### Open new Feature
 
 ```bash
-./bin/git-release-man git-release:feature open --name FEATURE_NAME_HERE
+./git-release-man.phar git-release:feature open --name FEATURE_NAME_HERE
 ```
 
 #### Close Feature
@@ -44,7 +44,7 @@ https://github.com/vdubyna/git-release-man/releases/latest
 Removes feature branch from remote repository
 
 ```bash
-./bin/git-release-man git-release:feature close --name FEATURE_NAME_HERE
+./git-release-man.phar git-release:feature close --name FEATURE_NAME_HERE
 ```
 
 #### Reopen Feature
@@ -52,49 +52,49 @@ Removes feature branch from remote repository
 Removes labels from pull request. It exclude feature from builds.
 
 ```bash
-./bin/git-release-man git-release:feature reopen --name FEATURE_NAME_HERE
+./git-release-man.phar git-release:feature reopen --name FEATURE_NAME_HERE
 ```
 
 #### List available features
 
 ```bash
-./bin/git-release-man git-release:feature list
+./git-release-man.phar git-release:feature list
 ```
 
 #### Mark Feature ready for testing
 
 ```bash
-./bin/git-release-man git-release:feature test --name FEATURE_NAME_HERE
+./git-release-man.phar git-release:feature test --name FEATURE_NAME_HERE
 ```
 
 #### Mark Feature ready for release
 
 ```bash
-./bin/git-release-man git-release:feature release --name FEATURE_NAME_HERE
+./git-release-man.phar git-release:feature release --name FEATURE_NAME_HERE
 ```
 
 #### Create test release (Release Candidate) Tag and Branch
 
 ```bash
-./bin/git-release-man git-release:build test
+./git-release-man.phar git-release:build test
 ```
 
 #### Merge pull requests into master branch, create release tag
 
 ```bash
-./bin/git-release-man git-release:build release
+./git-release-man.phar git-release:build release
 ```
 
 #### Get latest release tag
 
 ```bash
-./bin/git-release-man git-release:build latest-release
+./git-release-man.phar git-release:build latest-release
 ```
 
 #### Get latest test release tag
 
 ```bash
-./bin/git-release-man git-release:build latest-test-release
+./git-release-man.phar git-release:build latest-test-release
 ```
 
 
