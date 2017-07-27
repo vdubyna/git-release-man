@@ -1,13 +1,13 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: vdubyna
- * Date: 6/17/17
- * Time: 12:07
- */
 
 namespace Mirocode\GitReleaseMan;
 
+/**
+ * TODO Refactor this class and make it SIMPLE
+ *
+ * Class Version
+ * @package Mirocode\GitReleaseMan
+ */
 final class Version
 {
     /**

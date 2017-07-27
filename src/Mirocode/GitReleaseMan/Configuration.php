@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: vdubyna
- * Date: 7/14/17
- * Time: 15:50
- */
 
 namespace Mirocode\GitReleaseMan;
 
