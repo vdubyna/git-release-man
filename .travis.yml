@@ -18,6 +18,10 @@ after_success:
   - git tag $GIT_TAG -a -m "Generated tag from TravisCI build $TRAVIS_BUILD_NUMBER"
   - git push --quiet https://$GITHUBKEY@github.com/vdubyna/git-release-man $GIT_TAG > /dev/null 2>&1
 
+branches:
+  only:
+    - master
+
 deploy:
   provider: releases
   api_key:
@@ -25,7 +29,4 @@ deploy:
   file: "git-release-man.phar"
   skip_cleanup: true
   on:
-    branches:
-      only:
-        - master
     tags: true
