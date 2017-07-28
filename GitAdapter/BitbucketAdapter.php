@@ -26,7 +26,6 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         );
 
         $branches = $branches->all($username, $repository);
-        print_r($branches);
         $branches = json_decode($branches->getContent(), true);
         $branches = $branches['values'];
 

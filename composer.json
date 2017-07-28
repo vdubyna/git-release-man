@@ -1,6 +1,6 @@
 {
     "name": "vdubyna/git-release-man",
-    "description": "Git release manager with support of pull requests",
+    "description": "Git release manager which provides release strategy by Pull Requests",
     "type": "library",
     "license": "MIT",
     "require": {
@@ -12,6 +12,9 @@
         "symfony/process": "^3.3",
         "gentle/bitbucket-api": "^1.0"
     },
+    "require-dev": {
+        "phpunit/phpunit": "^5.7"
+    },
     "authors": [
         {
             "name": "Volodymyr Dubyna",
@@ -19,10 +22,12 @@
         }
     ],
     "autoload": {
-        "psr-4": {
-            "": "src/"
-        }
+        "psr-4": { "Mirocode\\GitReleaseMan\\": "" },
+        "exclude-from-classmap": [
+            "/Tests/"
+        ]
     },
+    "minimum-stability": "dev",
     "bin": [
         "bin/git-release-man"
     ]

@@ -11,6 +11,7 @@ use Mirocode\GitReleaseMan\ExitException as ExitException;
 class FeatureCommand extends Command
 {
     protected $allowedActions = array(
+        'check'    => 'check',
         'open'    => 'open',
         'test'    => 'test',
         'reopen'  => 'reopen',
@@ -20,6 +21,11 @@ class FeatureCommand extends Command
     );
 
     protected $featureName;
+
+    public function check()
+    {
+        $this->getStyleHelper()->write('Check Message');
+    }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
