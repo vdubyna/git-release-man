@@ -105,6 +105,6 @@ class Configuration
      */
     public function getGitAdapterName()
     {
-        return \Mirocode\GitReleaseMan\GitAdapter\GithubAdapter::class;
+        return \Mirocode\GitReleaseMan\GitAdapter\BitbucketAdapter::class;
     }
 }

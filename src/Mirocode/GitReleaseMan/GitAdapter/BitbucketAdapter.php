@@ -2,8 +2,9 @@
 
 namespace Mirocode\GitReleaseMan\GitAdapter;
 
+use Bitbucket\API\Http\Listener\BasicAuthListener;
+use Bitbucket\API\Repositories\Refs\Branches;
 use Composer\Semver\Semver;
-use Github\Client;
 use InvalidArgumentException;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
@@ -12,37 +13,26 @@ use Mirocode\GitReleaseMan\Version;
 
 class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
 {
-    /**
-     * @var Client
-     */
-    protected $apiClient;
-
-    /**
-     * @return Client
-     */
-    public function getApiClient()
-    {
-        if (empty($this->apiClient)) {
-            $client = new Client();
-            $client->authenticate(
-                $this->getConfiguration()->getToken(),
-                null,
-                Client::AUTH_HTTP_TOKEN
-            );
-            $this->apiClient = $client;
-        }
-
-        return $this->apiClient;
-    }
 
     public function getFeaturesList()
     {
         $username   = $this->getConfiguration()->getUsername();
+        $token      = $this->getConfiguration()->getToken();
         $repository = $this->getConfiguration()->getRepositoryName();
 
-        $branches = $this->getApiClient()
-                         ->repository()
-                         ->branches($username, $repository);
+        $branches = new Branches();
+        $branches->getClient()->addListener(
+            new BasicAuthListener($username, $token)
+        );
+
+        $branches = $branches->all($username, $repository);
+        print_r($branches);
+        $branches = json_decode($branches->getContent(), true);
+        $branches = $branches['values'];
+
+        if (empty($branches)) {
+            return array();
+        }
 
         $branches = array_map(function ($branch) {
             return $branch['name'];
@@ -51,6 +41,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $branches = array_filter($branches, function ($branch) {
             return (strpos($branch, 'feature') === 0);
         });
+
 
         return $branches;
     }

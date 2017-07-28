@@ -9,7 +9,8 @@
         "knplabs/github-api": "^2.4",
         "php-http/guzzle6-adapter": "^1.1",
         "composer/semver": "^1.4",
-        "symfony/process": "^3.3"
+        "symfony/process": "^3.3",
+        "gentle/bitbucket-api": "^1.0"
     },
     "authors": [
         {
