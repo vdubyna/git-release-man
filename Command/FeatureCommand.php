@@ -2,6 +2,8 @@
 
 namespace Mirocode\GitReleaseMan\Command;
 
+use Mirocode\GitReleaseMan\Entity\Feature;
+use Mirocode\GitReleaseMan\Entity\FeatureInterface;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
@@ -10,103 +12,125 @@ use Mirocode\GitReleaseMan\ExitException as ExitException;
 
 class FeatureCommand extends Command
 {
+    /**
+     * @inheritdoc
+     */
     protected $allowedActions = array(
-        'check'    => 'check',
         'open'    => 'open',
         'test'    => 'test',
+        'info'    => 'info',
         'reopen'  => 'reopen',
         'close'   => 'close',
         'release' => 'release',
         'list'    => 'featuresList',
     );
 
-    protected $featureName;
+    /**
+     * @var FeatureInterface
+     */
+    protected $feature;
 
-    public function check()
-    {
-        $this->getStyleHelper()->write('Check Message');
-    }
-
+    /**
+     * @inheritdoc
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $featureName = $input->getOption('name');
-
-        if (!empty($featureName)) {
-            $this->featureName = $featureName;
-        }
+        // Setup Feature Entity
+        $this->feature = new Feature($input->getOption('name'));
 
         parent::execute($input, $output);
     }
 
-
+    /**
+     * @inheritdoc
+     */
     protected function configure()
     {
         $this->setName('git-release:feature')
              ->addArgument('action', InputArgument::REQUIRED, 'Action')
-             ->addOption('name', null, InputArgument::OPTIONAL, 'Feature Name')
-             ->setDescription('Process feature.')
-             ->setHelp('Process feature');
+             ->addOption('name', null, InputArgument::REQUIRED, 'Feature Name')
+             ->setDescription('Feature git workflow tool')
+             ->setHelp('Feature actions: list, open, close, reopen, test, release, info');
     }
 
     /**
-     * We always start new features from master branch!
-     *
-     * @throws ExitException
+     * TODO implemented Feature information
+     */
+    public function info()
+    {
+        $this->getStyleHelper()->title('Feature Info');
+        $feature = $this->getFeature();
+        $this->getStyleHelper()
+             ->success("Feature {$feature->getName()}");
+    }
+
+    /**
+     * We always start new features from Master branch
+     * Master branch can be configured
      */
     public function open()
     {
         $this->getStyleHelper()->title('Start new feature');
 
-        $featureName = $this->getFeatureName();
+        $feature = $this->getFeature();
+        if ($this->isFeature($feature->getName())) {
+            throw new ExitException("The name of the feature \"{$feature->getName()}\" is not valid. " .
+                "It should start with prefix \"feature-\"");
+        }
 
-        $featureFullName = "feature-{$featureName}";
-        $this->getGitAdapter()->createRemoteBranch($featureName);
+        $this->getGitAdapter()->createRemoteBranch($feature->getName());
 
         $this->getStyleHelper()
-             ->success("Feature {$featureFullName} successfully created on remote repository.");
+             ->success("Feature {$feature->getName()} successfully created on remote repository.");
     }
 
     /**
-     * Remove feature branch from remote repository
-     * Close PR if needed
-     *
-     * @throws ExitException
+     * Removes feature branch from GitService
      */
     public function close()
     {
-        $featureName = $this->getFeatureName();
-        $this->getStyleHelper()->title("Close feature \"{$featureName}\".");
-        $this->getStyleHelper()->warning("Delete remote branch automatically close the Pull Request");
+        $feature = $this->getFeature();
+
+        $this->getStyleHelper()->title("Close feature \"{$feature->getName()}\".");
+        $this->getStyleHelper()->warning("Delete remote branch automatically close Merge Request");
         $this->confirmOrExit("Do you want to continue this operation:");
-        $this->getGitAdapter()->removeRemoteBranch($featureName);
-        $this->getStyleHelper()->success("Feature \"{$featureName}\" removed from remote repository.");
+
+        $this->getGitAdapter()->removeRemoteBranch($feature->getName());
+
+        $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" removed from remote repository.");
     }
 
+    /**
+     * Removes Pull request from the GitService
+     */
     public function reopen()
     {
-        $featureName = $this->getFeatureName();
-        $this->getStyleHelper()->title("Reopen feature \"{$featureName}\".");
+        $feature = $this->getFeature();
+
+        $this->getStyleHelper()->title("Reopen feature \"{$feature->getName()}\".");
         $this->getStyleHelper()->warning("This action will remove \"release\" and \"test\" labels");
         $this->confirmOrExit("Do you want to continue this operation:");
-        $this->getGitAdapter()->removeLabelsFromPullRequest($featureName);
+
+        $this->getGitAdapter()->closeMergeRequest($feature);
+
         $this->getStyleHelper()->success("Labels removed from remote repository.");
         $this->getStyleHelper()->note("Feature is ready to continue development, " .
             "changes will not be included into test or release builds");
     }
 
+    /**
+     * List available features
+     */
     public function featuresList()
     {
         $features = $this->getGitAdapter()->getFeaturesList();
-        $headers  = array('Feature Name', 'Pull Request', 'Labels', 'Compare with master');
+        $headers  = array('Feature Name', 'Pull Request', 'Compare with master');
 
         $rows = array_map(function ($feature) {
-            $pullRequest        = $this->getGitAdapter()->getPullRequestByFeature($feature);
+            $pullRequest        = $this->getGitAdapter()->getMergeRequestByFeature($feature);
             $pullRequestMessage = '';
-            $labelsMessage      = '';
 
             if (!empty($pullRequest)) {
-                $labels             = $this->getGitAdapter()->getLabelsByPullRequest($pullRequest['number']);
-                $labelsMessage      = implode(', ', $labels);
                 $pullRequestMessage = "PR: #{$pullRequest['number']} - {$pullRequest['title']}\n" .
                     "{$pullRequest['html_url']}";
             }
@@ -121,7 +145,6 @@ class FeatureCommand extends Command
             return array(
                 $feature,
                 $pullRequestMessage,
-                $labelsMessage,
                 $compareMessage,
             );
         }, $features);
@@ -130,28 +153,27 @@ class FeatureCommand extends Command
         $this->getStyleHelper()->table($headers, $rows);
     }
 
+    /**
+     * Open Pull Request to make feature available for QA testing
+     */
     public function test()
     {
-        $featureName = $this->getFeatureName();
-        $this->getStyleHelper()->title("Mark feature \"{$featureName}\" ready for testing");
-        $this->confirmOrExit("Do you want to publish feature \"{$featureName}\" for testing:");
+        $feature = $this->getFeature();
+        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for testing");
+        $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
 
-        $testLabel   = $this->getConfiguration()->getPRLabelForTest();
-        $pullRequest = $this->getGitAdapter()->getPullRequestByFeature($featureName);
+        $pullRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature->getName());
 
         if (empty($pullRequest)) {
-            $pullRequestNumber = $this->getGitAdapter()->openPullRequest($featureName);
-            $this->getGitAdapter()->addLabelToPullRequest($pullRequestNumber, $testLabel);
-            $this->getStyleHelper()->success("Pull request \"{$pullRequestNumber}\" created " .
-                "and marked with label \"{$testLabel}\" for testing.");
+            $pullRequestNumber = $this->getGitAdapter()->openMergeRequest($feature->getName());
+            $this->getStyleHelper()->success("Pull request \"{$pullRequestNumber}\" created ");
         } else {
-            $this->getGitAdapter()->addLabelToPullRequest($pullRequest['number'], $testLabel);
             $this->getStyleHelper()
                  ->note("Pull request \"{$pullRequest['number']} - {$pullRequest['title']}\" \n" .
-                     "already exists for feature: \"{$featureName}\"");
-            $this->getStyleHelper()->success("Marked with \"{$testLabel}\" label for testing");
-            $this->getStyleHelper()->success("To move forward execute test command: git:flow test");
+                     "already exists for feature: \"{$feature->getName()}\"");
         }
+
+        $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
     }
 
     /**
@@ -167,7 +189,7 @@ class FeatureCommand extends Command
         $this->confirmOrExit("Do you want to mark feature \"{$featureName}\" to be released:");
 
         $releaseLabel = $this->getConfiguration()->getPRLabelForRelease();
-        $pullRequest  = $this->getGitAdapter()->getPullRequestByFeature($featureName);
+        $pullRequest  = $this->getGitAdapter()->getMergeRequestByFeature($featureName);
 
         if (empty($pullRequest)) {
             $this->getStyleHelper()->error("Pull request does not exist for \"{$featureName}\". " .
@@ -183,41 +205,14 @@ class FeatureCommand extends Command
 
     protected function isFeature($featureName)
     {
-        return (strpos($featureName, 'feature') !== false);
+        return (strpos($featureName, 'feature') === 0);
     }
 
     /**
-     * @return string
-     * @throws ExitException
+     * @return FeatureInterface
      */
-    public function getFeatureName()
+    protected function getFeature()
     {
-        if (empty($this->featureName)) {
-            $featureName = $this->getCurrentBranch();
-            if (!$this->isFeature($featureName)) {
-                throw new ExitException("Feature {$featureName} is not feature");
-            }
-            $this->setFeatureName($featureName);
-        }
-
-        return $this->featureName;
-    }
-
-    /**
-     * @param mixed $featureName
-     *
-     * @throws ExitException
-     */
-    public function setFeatureName($featureName)
-    {
-        $this->featureName = $featureName;
-    }
-
-    /**
-     * @return string
-     */
-    public function getCurrentBranch()
-    {
-        return trim($this->executeShellCommand("git rev-parse --abbrev-ref HEAD"));
+        return $this->feature;
     }
 }

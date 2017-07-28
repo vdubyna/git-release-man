@@ -172,11 +172,11 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
-     * @param $featureName
+     * @param $feature
      *
      * @return mixed
      */
-    public function getPullRequestByFeature($featureName)
+    public function getMergeRequestByFeature($feature)
     {
         $repository   = $this->getConfiguration()->getRepositoryName();
         $username     = $this->getConfiguration()->getUsername();
@@ -191,7 +191,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                 array(
                     'state' => 'open',
                     'type'  => 'pr',
-                    'head'  => "{$username}:{$featureName}",
+                    'head'  => "{$username}:{$feature}",
                     'base'  => $masterBranch,
                 )
             );
@@ -200,11 +200,11 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
-     * @param $featureName
+     * @param $feature
      *
      * @return string
      */
-    public function openPullRequest($featureName)
+    public function openMergeRequest($feature)
     {
         $client       = $this->getApiClient();
         $repository   = $this->getConfiguration()->getRepositoryName();
@@ -215,8 +215,8 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             ->pullRequest()
             ->create($username, $repository, array(
                 'base'  => $masterBranch,
-                'head'  => "{$username}:{$featureName}",
-                'title' => ucfirst(str_replace('_', ' ', $featureName)),
+                'head'  => "{$username}:{$feature}",
+                'title' => ucfirst(str_replace('_', ' ', $feature)),
                 'body'  => 'PR Description',
             ));
 
@@ -240,7 +240,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $pullRequest['number'];
     }
 
-    public function compareFeatureWithMaster($featureName)
+    public function compareFeatureWithMaster($feature)
     {
         $client       = $this->getApiClient();
         $repository   = $this->getConfiguration()->getRepositoryName();
@@ -250,7 +250,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $compareFeatureInfo = $client
             ->repository()
             ->commits()
-            ->compare($username, $repository, $masterBranch, $featureName);
+            ->compare($username, $repository, $masterBranch, $feature);
 
         return array(
             'status'    => $compareFeatureInfo['status'],
@@ -333,7 +333,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $client->repository()->merge($username, $repository, $targetBranch, $sourceBranch);
     }
 
-    public function mergePullRequest($pullRequestNumber, $type = 'squash')
+    public function mergeMergeRequest($pullRequestNumber, $type = 'squash')
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepositoryName();

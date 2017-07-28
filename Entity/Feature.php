@@ -3,8 +3,11 @@
 namespace Mirocode\GitReleaseMan\Entity;
 
 
-class Branch implements BranchInterface
+class Feature implements FeatureInterface
 {
+    /**
+     * @var string
+     */
     protected $name;
 
     public function __construct($name)
@@ -12,8 +15,11 @@ class Branch implements BranchInterface
         $this->name = $name;
     }
 
+    /**
+     * @return string
+     */
     public function getName()
     {
-        $this->name;
+        return $this->name;
     }
 }

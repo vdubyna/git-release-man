@@ -91,7 +91,7 @@ class BuildCommand extends Command
         $this->getStyleHelper()->success("There is no conflicts, Pull Requests ready for release");
 
         foreach ($pullRequests as $pullRequest) {
-            $this->getGitAdapter()->mergePullRequest($pullRequest['number']);
+            $this->getGitAdapter()->mergeMergeRequest($pullRequest['number']);
             $this->getStyleHelper()->success("Merge Pull Request {$pullRequest['title']} #{$pullRequest['number']}");
         }
 

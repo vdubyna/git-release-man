@@ -3,7 +3,10 @@
 namespace Mirocode\GitReleaseMan\Entity;
 
 
-interface BranchInterface
+interface FeatureInterface
 {
+    /**
+     * @return string
+     */
     public function getName();
 }
