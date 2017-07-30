@@ -73,10 +73,6 @@ class FeatureCommand extends Command
         $this->getStyleHelper()->title('Start new feature');
 
         $feature = $this->getFeature();
-        if ($this->isFeature($feature->getName())) {
-            throw new ExitException("The name of the feature \"{$feature->getName()}\" is not valid. " .
-                "It should start with prefix \"feature-\"");
-        }
 
         $this->getGitAdapter()->createRemoteBranch($feature->getName());
 
@@ -162,14 +158,16 @@ class FeatureCommand extends Command
         $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for testing");
         $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
 
-        $pullRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature->getName());
+        $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
 
-        if (empty($pullRequest)) {
-            $pullRequestNumber = $this->getGitAdapter()->openMergeRequest($feature->getName());
+        if (empty($mergeRequest)) {
+            $pullRequestNumber = $this->getGitAdapter()->openMergeRequest($feature);
+            $this->getGitAdapter()->markMergeRequestReadyForTest($feature);
             $this->getStyleHelper()->success("Pull request \"{$pullRequestNumber}\" created ");
         } else {
+            $this->getGitAdapter()->markMergeRequestReadyForTest($feature);
             $this->getStyleHelper()
-                 ->note("Pull request \"{$pullRequest['number']} - {$pullRequest['title']}\" \n" .
+                 ->note("Pull request \"{$mergeRequest['number']} - {$mergeRequest['title']}\" \n" .
                      "already exists for feature: \"{$feature->getName()}\"");
         }
 
@@ -183,29 +181,22 @@ class FeatureCommand extends Command
      */
     public function release()
     {
-        $featureName = $this->getFeatureName();
+        $feature = $this->getFeature();
 
-        $this->getStyleHelper()->title("Mark feature \"{$featureName}\" ready for release");
-        $this->confirmOrExit("Do you want to mark feature \"{$featureName}\" to be released:");
+        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for release");
+        $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" to be released:");
 
-        $releaseLabel = $this->getConfiguration()->getPRLabelForRelease();
-        $pullRequest  = $this->getGitAdapter()->getMergeRequestByFeature($featureName);
+        $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
 
-        if (empty($pullRequest)) {
-            $this->getStyleHelper()->error("Pull request does not exist for \"{$featureName}\". " .
+        if (empty($mergeRequest)) {
+            $this->getStyleHelper()->error("Pull request does not exist for \"{$feature->getName()}\". " .
                 "You need to test feature before release.");
         } else {
-            $pullRequestNumber = $pullRequest['number'];
-            $this->getGitAdapter()->addLabelToPullRequest($pullRequestNumber, $releaseLabel);
-            $this->getStyleHelper()->success("Pull request \"{$pullRequestNumber}\"" .
-                "marked with label \"{$releaseLabel}\" to be released.");
-            $this->getStyleHelper()->success("To move forward execute release command: git:flow release");
-        }
-    }
+            $this->getGitAdapter()->markMergeRequestReadyForRelease($feature);
 
-    protected function isFeature($featureName)
-    {
-        return (strpos($featureName, 'feature') === 0);
+            $this->getStyleHelper()->success("Pull request \"{$mergeRequest->getNumber()}\" marked to be released.");
+            $this->getStyleHelper()->success("To move forward execute release command: git-release:build release");
+        }
     }
 
     /**

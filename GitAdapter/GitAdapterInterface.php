@@ -2,7 +2,8 @@
 
 namespace Mirocode\GitReleaseMan\GitAdapter;
 
-use Mirocode\GitReleaseMan\Entity\FeatureInterface;
+use Mirocode\GitReleaseMan\Entity\Feature;
+use Mirocode\GitReleaseMan\Entity\MergeRequest;
 
 interface GitAdapterInterface
 {
@@ -10,17 +11,42 @@ interface GitAdapterInterface
 
     public function createRemoteBranch($branchName);
 
-    public function getMergeRequestByFeature(FeatureInterface $feature);
+    /**
+     * @param Feature $feature
+     *
+     * @return MergeRequest
+     */
+    public function getMergeRequestByFeature(Feature $feature);
 
-    public function openMergeRequest(FeatureInterface $feature);
+    /**
+     * @param Feature $feature
+     *
+     * @return MergeRequest
+     */
+    public function openMergeRequest(Feature $feature);
 
+    /**
+     * @return Feature[]
+     */
     public function getFeaturesList();
 
-    public function compareFeatureWithMaster(FeatureInterface $feature);
+    /**
+     * @param Feature $feature
+     *
+     * @return mixed
+     */
+    public function compareFeatureWithMaster(Feature $feature);
 
+    /**
+     * @return string
+     */
     public function getReleaseVersion();
 
+    /**
+     * @return string
+     */
     public function getReleaseCandidateVersion();
+
 
     public function mergeRemoteBranches($targetBranch, $sourceBranch);
 
@@ -32,5 +58,24 @@ interface GitAdapterInterface
 
     public function getLatestTestReleaseTag();
 
-    public function closeMergeRequest($featureName);
+    /**
+     * @param Feature $feature
+     *
+     * @return MergeRequest
+     */
+    public function closeMergeRequestByFeature(Feature $feature);
+
+    /**
+     * @param Feature $feature
+     *
+     * @return boolean
+     */
+    public function markMergeRequestReadyForTest(Feature $feature);
+
+    /**
+     * @param Feature $feature
+     *
+     * @return boolean
+     */
+    public function markMergeRequestReadyForRelease(Feature $feature);
 }

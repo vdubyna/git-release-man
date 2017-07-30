@@ -2,8 +2,7 @@
 
 namespace Mirocode\GitReleaseMan\Entity;
 
-
-class Feature implements FeatureInterface
+class Feature
 {
     /**
      * @var string

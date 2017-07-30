@@ -5,6 +5,8 @@ namespace Mirocode\GitReleaseMan\GitAdapter;
 use Composer\Semver\Semver;
 use Github\Client;
 use InvalidArgumentException;
+use Mirocode\GitReleaseMan\Entity\Feature;
+use Mirocode\GitReleaseMan\Entity\FeatureInterface;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Mirocode\GitReleaseMan\Configuration;
@@ -17,24 +19,10 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     protected $apiClient;
 
+
     /**
-     * @return Client
+     * @return FeatureInterface[]
      */
-    public function getApiClient()
-    {
-        if (empty($this->apiClient)) {
-            $client = new Client();
-            $client->authenticate(
-                $this->getConfiguration()->getToken(),
-                null,
-                Client::AUTH_HTTP_TOKEN
-            );
-            $this->apiClient = $client;
-        }
-
-        return $this->apiClient;
-    }
-
     public function getFeaturesList()
     {
         $username   = $this->getConfiguration()->getUsername();
@@ -44,13 +32,15 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                          ->repository()
                          ->branches($username, $repository);
 
-        $branches = array_map(function ($branch) {
-            return $branch['name'];
+        $features = array_map(function ($branch) {
+            return $this->createFeature($branch['name']);
         }, $branches);
 
-        $branches = array_filter($branches, function ($branch) {
-            return (strpos($branch, 'feature') === 0);
+        $features = array_filter($branches, function ($branch) {
+            return (strpos($branch->getName, 'feature') === 0);
         });
+
+
 
         return $branches;
     }
@@ -425,5 +415,38 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                        'target_commitish' => $branchInfo['commit']['sha'],
                    )
                );
+    }
+
+    public function closeMergeRequest($featureName)
+    {
+        // TODO: Implement closeMergeRequest() method.
+    }
+
+    public function markMergeRequestReadyForTest(FeatureInterface $feature)
+    {
+        // TODO: Implement markMergeRequestReadyForTest() method.
+    }
+
+    public function markMergeRequestReadyForRelease(FeatureInterface $feature)
+    {
+        // TODO: Implement markMergeRequestReadyForRelease() method.
+    }
+
+    /**
+     * @return Client
+     */
+    protected function getApiClient()
+    {
+        if (empty($this->apiClient)) {
+            $client = new Client();
+            $client->authenticate(
+                $this->getConfiguration()->getToken(),
+                null,
+                Client::AUTH_HTTP_TOKEN
+            );
+            $this->apiClient = $client;
+        }
+
+        return $this->apiClient;
     }
 }
