@@ -73,7 +73,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                                 'sha' => $masterBranchInfo['object']['sha'],
                             ));
         $feature->setStatus(Feature::STATUS_STARTED)
-                ->setCommit($featureInfo['commit']['sha']);
+                ->setCommit($featureInfo['object']['sha']);
 
         return $feature;
     }
@@ -98,9 +98,8 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     {
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
-        $client     = $this->getApiClient();
 
-        $labels = $client
+        $labels = $this->getApiClient()
             ->issues()
             ->labels()
             ->all($username, $repository, $mergeRequestNumber);
@@ -166,9 +165,9 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         if (count($mergeRequests) === 1) {
             $mergeRequestInfo = $mergeRequests[0];
             $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
-            $mergeRequest->setName($mergeRequest['name'])
-                         ->setUrl($mergeRequest['html_url'])
-                         ->setUrl($mergeRequest['description']);
+            $mergeRequest->setName($mergeRequestInfo['title'])
+                         ->setUrl($mergeRequestInfo['html_url'])
+                         ->setDescription($mergeRequestInfo['body']);
 
             return $mergeRequest;
         }
@@ -192,8 +191,8 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             ->pullRequest()
             ->create($username, $repository, array(
                 'base'  => $masterBranch,
-                'head'  => "{$username}:{$feature}",
-                'title' => ucfirst(str_replace('_', ' ', $feature)),
+                'head'  => "{$username}:{$feature->getName()}",
+                'title' => ucfirst(str_replace('_', ' ', $feature->getName())),
                 'body'  => 'PR Description',
             ));
 
@@ -202,19 +201,23 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             $repository,
             $pullRequest['number']
         );
+        print_r($pullRequestCommits);
 
         $pullRequestDescription = array_reduce($pullRequestCommits, function ($message, $commit) {
             return $message . '* ' . $commit['commit']['message'] . PHP_EOL;
         }, '');
 
-        $client->pullRequest()->update(
+        $mergeRequestInfo = $client->pullRequest()->update(
             $username,
             $repository,
             $pullRequest['number'],
             array('body' => $pullRequestDescription)
         );
 
-        return $pullRequest['number'];
+        print_r($mergeRequestInfo);
+        $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
+
+        return $mergeRequest;
     }
 
     public function compareFeatureWithMaster(Feature $feature)
@@ -482,7 +485,12 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     {
         $username    = $this->getConfiguration()->getUsername();
         $repository  = $this->getConfiguration()->getRepository();
-        $featureInfo = $this->getApiClient()->repository()->branches($username, $repository, $featureName);
+
+        try {
+            $featureInfo = $this->getApiClient()->repository()->branches($username, $repository, $featureName);
+        } catch (\Github\Exception\RuntimeException $e) {
+            $featureInfo = array();
+        }
 
         $feature = new Feature($featureName);
 
@@ -493,8 +501,8 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                     ->setCommit($featureInfo['commit']['sha']);
 
             $mergeRequest = $this->getMergeRequestByFeature($feature);
-            if (!empty($mergeRequest)) {
 
+            if ($mergeRequest && $mergeRequest->getNumber()) {
                 $labels = $this->getLabelsByMergeRequest($mergeRequest->getNumber());
                 $feature->setLabels($labels)
                     ->setMergeRequestNumber($mergeRequest->getNumber());
@@ -502,7 +510,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                 if (in_array($this->getConfiguration()->getLabelForTest(), $feature->getLabels())) {
                     $feature->setStatus(Feature::STATUS_TEST);
                 }
-                
+
                 if (in_array($this->getConfiguration()->getLabelForRelease(), $feature->getLabels())) {
                     $feature->setStatus(Feature::STATUS_RELEASE);
                 }

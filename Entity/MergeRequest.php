@@ -18,7 +18,7 @@ class MergeRequest
 
     public function getNumber()
     {
-        return $this->getNumber();
+        return $this->number;
     }
 
     /**
@@ -79,6 +79,18 @@ class MergeRequest
     public function getDescription()
     {
         return $this->description;
+    }
+
+    /**
+     * @param mixed $number
+     *
+     * @return MergeRequest
+     */
+    public function setNumber($number)
+    {
+        $this->number = $number;
+
+        return $this;
     }
 
 
