@@ -81,7 +81,7 @@ class Feature
     {
         $this->mergeRequestNumber = $mergeRequestNumber;
         return $this;
-}
+    }
 
     /**
      * @return string
@@ -101,7 +101,7 @@ class Feature
         $this->labels = $labels;
 
         return $this;
-}
+    }
 
     /**
      * @return array
@@ -121,7 +121,7 @@ class Feature
         $this->mergeRequest = $mergeRequest;
 
         return $this;
-}
+    }
 
     /**
      * @return MergeRequest
