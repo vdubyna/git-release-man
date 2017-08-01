@@ -43,25 +43,20 @@ class FeatureCommand extends Command
         parent::configure();
     }
 
-    /**
-     * @inheritdoc
-     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->feature = $this->getGitAdapter()->buildFeature($input->getOption('name'));
-
+        $this->feature = $this->getGitAdapter()
+                              ->buildFeature($input->getOption('name'));
         parent::execute($input, $output);
     }
 
-    /**
-     * TODO implement Feature information
-     */
     public function info()
     {
-        $this->getStyleHelper()->title('Feature Info');
         $feature = $this->getFeature();
+
+        $this->getStyleHelper()->title('Feature Info');
         $this->getStyleHelper()
-             ->success("Feature {$feature->getName()}");
+             ->note("Feature {$feature->getName()} STATUS: {$feature->getStatus()}");
     }
 
     /**
@@ -73,9 +68,9 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Start feature {$feature->getName()}");
-        if ($feature->getStatus() === Feature::STATUS_NEW) {
-            $this->confirmOrExit("Do you want to continue this operation:");
+        $this->confirmOrExit("Do you want to continue this operation:");
 
+        if ($feature->getStatus() === Feature::STATUS_NEW) {
             $feature = $this->getGitAdapter()->startFeature($feature);
             if ($feature->getStatus() === Feature::STATUS_STARTED) {
                 $this->getStyleHelper()
@@ -96,7 +91,6 @@ class FeatureCommand extends Command
                      "Feature {$feature->getName()} status {$feature->getStatus()} is invalid for this operation."
                  );
         }
-
     }
 
     /**
@@ -109,9 +103,12 @@ class FeatureCommand extends Command
         $this->getStyleHelper()->title("Close feature \"{$feature->getName()}\".");
         $this->getStyleHelper()->warning("Delete remote branch automatically close Merge Request");
         $this->confirmOrExit("Do you want to continue this operation:");
+
         $feature = $this->getGitAdapter()->closeFeature($feature);
-        // TODO verify exceptions and feature status
-        $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" removed from remote repository.");
+
+        if ($feature->getStatus() === Feature::STATUS_CLOSE) {
+            $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" removed from remote repository.");
+        }
     }
 
     /**
@@ -124,47 +121,59 @@ class FeatureCommand extends Command
         $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for testing");
         $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
 
-        $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
-
-        if (empty($mergeRequest->getNumber())) {
-            $mergeRequest = $this->getGitAdapter()->openMergeRequestByFeature($feature);
-            $this->getGitAdapter()->markMergeRequestReadyForTest($mergeRequest);
-            // TODO verify exceptions and status
-            $this->getStyleHelper()->success("Pull request \"{$mergeRequest->getNumber()}\" created ");
-        } else {
-            $this->getGitAdapter()->markMergeRequestReadyForTest($mergeRequest);
-            // TODO verify exceptions and status
+        if ($feature->getStatus() === Feature::STATUS_NEW) {
             $this->getStyleHelper()
-                 ->note("Pull request \"{$mergeRequest->getName()} - {$mergeRequest->getName()}\" \n" .
-                     "already exists for feature: \"{$feature->getName()}\"");
+                 ->warning("Feature {$feature->getName()} should be started before go to test status.");
+        } elseif ($feature->getStatus() === Feature::STATUS_STARTED) {
+            $mergeRequest = $this->getGitAdapter()
+                                 ->openMergeRequestByFeature($feature);
+            $feature->setMergeRequestNumber($mergeRequest['number']);
+            $this->getGitAdapter()
+                 ->markFeatureReadyForTest($feature);
+            $this->getStyleHelper()
+                 ->success("Merge request \"{$feature->getMergeRequestNumber()}\" created ");
+            $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
+        } elseif ($feature->getStatus() === Feature::STATUS_TEST) {
+            $this->getStyleHelper()
+                 ->note("Feature {$feature->getName()} already marked ready for test. " .
+                     "See merge request {$feature->getMergeRequestNumber()}.");
+            $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
+        } else {
+            $this->getStyleHelper()
+                 ->warning("Feature status: {$feature->getStatus()} not valid to go to test.");
         }
-
-        $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
     }
 
     /**
-     * Mark Feature ready for release
-     **
-     * @throws ExitException
+     * Mark Merge Request ready to go to production
      */
     public function release()
     {
         $feature = $this->getFeature();
 
-        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for release");
-        $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" to be released:");
+        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for testing");
+        $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
 
-        $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
-
-        if (empty($mergeRequest)) {
-            $this->getStyleHelper()->error("Merge Request does not exist for \"{$feature->getName()}\" " .
-                "or it was not marked Ready for Test. " .
-                "You need to test feature before release.");
+        if ($feature->getStatus() === Feature::STATUS_NEW || $feature->getStatus() === Feature::STATUS_STARTED) {
+            $this->getStyleHelper()
+                 ->warning(
+                     "Feature {$feature->getName()} should be marked ready for test before go to release status."
+                 );
+        } elseif ($feature->getStatus() === Feature::STATUS_TEST) {
+            $this->getGitAdapter()
+                 ->markFeatureReadyForRelease($feature);
+            $this->getStyleHelper()
+                 ->success("Feature {$feature->getName()} marked ready for release.");
+            $this->getStyleHelper()
+                 ->success("To move forward execute test command: git-release:build test");
+        } elseif ($feature->getStatus() === Feature::STATUS_RELEASE) {
+            $this->getStyleHelper()
+                 ->note("Feature {$feature->getName()} already marked ready for release. " .
+                     "See merge request {$feature->getMergeRequestNumber()}.");
+            $this->getStyleHelper()->success("To move forward execute test command: git-release:build release");
         } else {
-            $mergeRequest = $this->getGitAdapter()->markMergeRequestReadyForRelease($mergeRequest);
-            // TODO verify exceptions and status
-            $this->getStyleHelper()->success("Pull request \"{$mergeRequest->getNumber()}\" marked to be released.");
-            $this->getStyleHelper()->success("To move forward execute release command: git-release:build release");
+            $this->getStyleHelper()
+                 ->warning("Feature status: {$feature->getStatus()} not valid to go to release.");
         }
     }
 

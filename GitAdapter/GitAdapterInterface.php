@@ -18,13 +18,6 @@ interface GitAdapterInterface
     /**
      * @param Feature $feature
      *
-     * @return Feature
-     */
-    public function loadFeature(Feature $feature);
-
-    /**
-     * @param Feature $feature
-     *
      * @return MergeRequest|null
      */
     public function getMergeRequestByFeature(Feature $feature);
@@ -41,30 +34,6 @@ interface GitAdapterInterface
      */
     public function getFeaturesList();
 
-    /**
-     * @param Feature $feature
-     *
-     * @return mixed
-     */
-    public function compareFeatureWithMaster(Feature $feature);
-
-    /**
-     * @return string
-     */
-    public function getReleaseVersion();
-
-    /**
-     * @return string
-     */
-    public function getReleaseCandidateVersion();
-
-
-    public function mergeRemoteBranches($targetBranch, $sourceBranch);
-
-    public function mergeMergeRequest($pullRequestNumber, $type = '');
-
-    public function getRCBranchesListByRelease($releaseVersion);
-
     public function getLatestReleaseTag();
 
     public function getLatestTestReleaseTag();
@@ -72,30 +41,23 @@ interface GitAdapterInterface
     /**
      * @param Feature $feature
      *
-     * @return MergeRequest
+     * @return Feature
      */
-    public function closeMergeRequestByFeature(Feature $feature);
+    public function markFeatureAsNew(Feature $feature);
 
     /**
-     * @param MergeRequest $mergeRequest
-     *
-     * @return MergeRequest
-     */
-    public function markMergeRequestReadyForTest(MergeRequest $mergeRequest);
-
-    /**
-     * @param MergeRequest $mergeRequest
-     *
-     * @return MergeRequest
-     */
-    public function markMergeRequestReadyForRelease(MergeRequest $mergeRequest);
-
-    /**
-     * @param $feature
+     * @param Feature $feature
      *
      * @return Feature
      */
-    public function markFeatureAsNew($feature);
+    public function markFeatureReadyForTest(Feature $feature);
+
+    /**
+     * @param Feature $feature
+     *
+     * @return Feature
+     */
+    public function markFeatureReadyForRelease(Feature $feature);
 
     /**
      * @param Feature $feature

@@ -9,6 +9,10 @@ class Feature
      */
     protected $name;
     protected $status;
+    protected $commit;
+    protected $mergeRequestNumber;
+    protected $labels;
+
 
     const STATUS_NEW     = 'new';
     const STATUS_STARTED = 'started';
@@ -32,7 +36,7 @@ class Feature
     /**
      * @param $status
      *
-     * @return $this
+     * @return Feature
      */
     public function setStatus($status)
     {
@@ -41,10 +45,68 @@ class Feature
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     public function getStatus()
     {
         return $this->status;
+    }
+
+    /**
+     * @param mixed $commit
+     *
+     * @return Feature
+     */
+    public function setCommit($commit)
+    {
+        $this->commit = $commit;
+        return $this;
+}
+
+    /**
+     * @return string
+     */
+    public function getCommit()
+    {
+        return $this->commit;
+    }
+
+    /**
+     * @param integer $mergeRequestNumber
+     *
+     * @return Feature
+     */
+    public function setMergeRequestNumber($mergeRequestNumber)
+    {
+        $this->mergeRequestNumber = $mergeRequestNumber;
+        return $this;
+}
+
+    /**
+     * @return string
+     */
+    public function getMergeRequestNumber()
+    {
+        return $this->mergeRequestNumber;
+    }
+
+    /**
+     * @param mixed $labels
+     *
+     * @return Feature
+     */
+    public function setLabels($labels)
+    {
+        $this->labels = $labels;
+
+        return $this;
+}
+
+    /**
+     * @return array
+     */
+    public function getLabels()
+    {
+        return $this->labels;
     }
 }

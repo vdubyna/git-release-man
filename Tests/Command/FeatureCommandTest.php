@@ -12,27 +12,30 @@ use Symfony\Component\Console\Application;
 
 class FeatureCommandTest extends TestCase
 {
+
+    const DEFAULT_FEATURE_NAME = 'feature-my-cool';
+
     public function testExecuteFeatureStart()
     {
-        $command = $this->getFeatureCommand();
+        $command = $this->getFeatureCommandWithNewFeature();
         $commandTester = new CommandTester($command);
         $commandTester->execute(array(
             'command' => $command->getName(),
             'action'  => 'start',
-            '--name'  => 'feature-my-cool',
+            '--name'  => self::DEFAULT_FEATURE_NAME,
         ), array('interactive' => false));
 
         $output = $commandTester->getDisplay();
         $this->assertContains('Start new feature', $output);
 
         $feature = $command->getFeature();
-        $this->assertEquals('feature-my-cool', $feature->getName());
+        $this->assertEquals(self::DEFAULT_FEATURE_NAME, $feature->getName());
         $this->assertEquals(Feature::STATUS_NEW, $feature->getStatus());
     }
 
     public function testExecuteFeatureClose()
     {
-        $command = $this->getFeatureCommand();
+        $command = $this->getFeatureCommandWithNewFeature();
         $commandTester = new CommandTester($command);
         $commandTester->execute(array(
             'command' => $command->getName(),
@@ -50,7 +53,8 @@ class FeatureCommandTest extends TestCase
 
     public function testExecuteFeatureTest()
     {
-        $command = $this->getFeatureCommand();
+        $command = $this->getFeatureCommandWithNewFeature();
+
         $commandTester = new CommandTester($command);
         $commandTester->execute(array(
             'command' => $command->getName(),
@@ -66,17 +70,29 @@ class FeatureCommandTest extends TestCase
         $this->assertEquals(Feature::STATUS_TEST, $feature->getStatus());
     }
 
-
-
     /**
      * @return FeatureCommand
      */
-    public function getFeatureCommand()
+    public function getFeatureCommandWithNewFeature()
     {
         $command = new FeatureCommand();
         $command->setApplication(new Application());
         $configuration = new Configuration();
-        $command->setGitAdapter(new GitAdapter($configuration));
+
+        /** @var GitAdapter|\PHPUnit_Framework_MockObject_MockObject $gitAdapter */
+        $gitAdapter = $this->getMockBuilder(GitAdapter::class)
+                         ->setConstructorArgs(array($configuration))
+                         ->setMethods(array('loadFeature'))
+                         ->getMock();
+
+        $feature = new Feature(self::DEFAULT_FEATURE_NAME);
+        $feature->setStatus(Feature::STATUS_NEW);
+
+        $gitAdapter->expects($this->once())
+                 ->method('loadFeature')
+                 ->willReturn($feature);
+
+        $command->setGitAdapter($gitAdapter);
 
         return $command;
     }

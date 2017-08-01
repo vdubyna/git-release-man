@@ -157,4 +157,15 @@ class GitAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $feature->setStatus(Feature::STATUS_NEW);
         return $feature;
     }
+
+    /**
+     * @param Feature $feature
+     *
+     * @return Feature
+     */
+    public function markFeatureAsNew(Feature $feature)
+    {
+        $feature->setStatus(Feature::STATUS_NEW);
+        return $feature;
+    }
 }

@@ -9,18 +9,11 @@ use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 abstract class GitAdapterAbstract implements GitAdapterInterface
 {
     protected $configuration;
+    protected $featureInfo;
 
     public function __construct(Configuration $configuration)
     {
         $this->configuration = $configuration;
-    }
-
-    /**
-     * @return Configuration
-     */
-    public function getConfiguration()
-    {
-        return $this->configuration;
     }
 
     /**
@@ -30,11 +23,33 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      *
      * @return Feature
      */
-    public function buildFeature($featureName)
-    {
-        $feature = new Feature($featureName);
-        $this->loadFeature($feature);
+    abstract public function buildFeature($featureName);
 
-        return $feature;
+    /**
+     * @param mixed $featureInfo
+     *
+     * @return GitAdapterAbstract
+     */
+    public function setFeatureInfo($featureInfo)
+    {
+        $this->featureInfo = $featureInfo;
+
+        return $this;
+}
+
+    /**
+     * @return mixed
+     */
+    public function getFeatureInfo()
+    {
+        return $this->featureInfo;
+    }
+
+    /**
+     * @return Configuration
+     */
+    public function getConfiguration()
+    {
+        return $this->configuration;
     }
 }
