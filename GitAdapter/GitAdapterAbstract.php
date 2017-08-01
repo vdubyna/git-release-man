@@ -4,7 +4,6 @@ namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
-use Mirocode\GitReleaseMan\Entity\FeatureInterface;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 
 abstract class GitAdapterAbstract implements GitAdapterInterface
@@ -25,13 +24,16 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
-     * Factory method to create feature
+     * Force Adapters to load feature info from repository
      *
-     * @return FeatureInterface
+     * @param $featureName
+     *
+     * @return Feature
      */
-    public function createFeature($featureName)
+    public function buildFeature($featureName)
     {
         $feature = new Feature($featureName);
+        $this->loadFeature($feature);
 
         return $feature;
     }

@@ -7,17 +7,13 @@ class MergeRequest
 {
     protected $number;
 
+    protected $name;
+    protected $url;
+    protected $description;
+
     public function __construct($number)
     {
         $this->number = $number;
-    }
-
-    /**
-     * @return string
-     */
-    public function getName()
-    {
-        // TODO: Implement getNumber() method.
     }
 
     public function getNumber()
@@ -25,13 +21,65 @@ class MergeRequest
         return $this->getNumber();
     }
 
-    public function getUrl()
+    /**
+     * @param mixed $name
+     *
+     * @return MergeRequest
+     */
+    public function setName($name)
     {
-        // TODO: Implement getUrl() method.
+        $this->name = $name;
+
+        return $this;
     }
 
+    /**
+     * @return mixed
+     */
+    public function getName()
+    {
+        return $this->name;
+    }
+
+    /**
+     * @param mixed $url
+     *
+     * @return MergeRequest
+     */
+    public function setUrl($url)
+    {
+        $this->url = $url;
+
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getUrl()
+    {
+        return $this->url;
+    }
+
+    /**
+     * @param mixed $description
+     *
+     * @return MergeRequest
+     */
+    public function setDescription($description)
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
     public function getDescription()
     {
-        // TODO: Implement getDescription() method.
+        return $this->description;
     }
+
+
 }

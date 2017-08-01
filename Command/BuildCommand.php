@@ -18,6 +18,7 @@ class BuildCommand extends Command
 
     protected function configure()
     {
+        parent::configure();
         $this->setName('git-release:build')
              ->addArgument('action', InputArgument::REQUIRED, 'Action')
              ->setDescription('Init git release man')
@@ -26,17 +27,25 @@ class BuildCommand extends Command
 
     public function init()
     {
-        $confirmationMassage = ($this->getConfiguration()->isConfigurationExists())
-            ? "Configuration already exists in current repository?"
-            : "Do you want to init git-release-man configuration in current repository?";
+        if (!$this->isNoQuestionsEnabled()) {
+            $confirmationMassage = ($this->getConfiguration()->isConfigurationExists())
+                ? "Configuration already exists in current repository?"
+                : "Do you want to init git-release-man configuration in current repository?";
+            $this->confirmOrExit($confirmationMassage);
 
-        $this->confirmOrExit($confirmationMassage);
-
-        $username       = $this->askAndGetValueOrExit('What is your name?');
-        $token          = $this->askAndGetValueOrExit('What is your token?');
-        $repositoryName = $this->askAndGetValueOrExit('What is your repository name?');
-
-        $this->getConfiguration()->initConfiguration($username, $token, $repositoryName);
+            $gitAdapter     = $this->askAndChooseValueOrExit('What is your gitAdapter (github|bitbucket)?',
+                array('github', 'bitbucket', 'gitlab'));
+            $username       = $this->askAndGetValueOrExit('What is your name?');
+            $token          = $this->askAndGetValueOrExit('What is your token?');
+            $repositoryName = $this->askAndGetValueOrExit('What is your repository name?');
+        } else {
+            // When interaction mode disabled, options loaded into configuration object
+            $gitAdapter     = $this->getConfiguration()->getGitAdapter();
+            $username       = $this->getConfiguration()->getUsername();
+            $token          = $this->getConfiguration()->getToken();
+            $repositoryName = $this->getConfiguration()->getRepository();
+        }
+        $this->getConfiguration()->initConfiguration($username, $token, $repositoryName, $gitAdapter);
     }
 
     public function test()
@@ -53,7 +62,7 @@ class BuildCommand extends Command
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
 
-        $this->getGitAdapter()->createRemoteBranch($releaseCandidateVersion);
+        $this->getGitAdapter()->buildFeature($releaseCandidateVersion);
         $this->getStyleHelper()->success("Create Release Candidate \"{$releaseCandidateVersion}\" created");
 
         foreach ($pullRequests as $pullRequest) {
@@ -96,7 +105,7 @@ class BuildCommand extends Command
         }
 
         foreach ($pullRequests as $pullRequest) {
-            $this->getGitAdapter()->removeRemoteBranch($pullRequest['head']['ref']);
+            $this->getGitAdapter()->removeFeature($pullRequest['head']['ref']);
             $this->getStyleHelper()->success("Branch {$pullRequest['head']['ref']} removed.");
         }
 
@@ -104,7 +113,7 @@ class BuildCommand extends Command
         $this->getGitAdapter()->createReleaseTag($releaseVersion);
 
         foreach ($this->getGitAdapter()->getRCBranchesListByRelease($releaseVersion) as $rcBranch) {
-            $this->getGitAdapter()->removeRemoteBranch($rcBranch);
+            $this->getGitAdapter()->removeFeature($rcBranch);
         }
 
         $this->getStyleHelper()->success("Release \"{$releaseVersion}\" generated.");

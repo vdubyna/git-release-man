@@ -9,7 +9,7 @@ use Symfony\Component\Console\Application;
 
 class FeatureCommandTest extends TestCase
 {
-    public function testExecute()
+    public function testExecuteFeatureList()
     {
         $command = new FeatureCommand();
         $command->setApplication(new Application());

@@ -6,7 +6,7 @@ use Composer\Semver\Semver;
 use Github\Client;
 use InvalidArgumentException;
 use Mirocode\GitReleaseMan\Entity\Feature;
-use Mirocode\GitReleaseMan\Entity\FeatureInterface;
+use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Mirocode\GitReleaseMan\Configuration;
@@ -21,84 +21,76 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
 
     /**
-     * @return FeatureInterface[]
+     * @return MergeRequest[]
      */
     public function getFeaturesList()
     {
         $username   = $this->getConfiguration()->getUsername();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
 
         $branches = $this->getApiClient()
                          ->repository()
                          ->branches($username, $repository);
 
         $features = array_map(function ($branch) {
-            return $this->createFeature($branch['name']);
+            return $this->buildFeature($branch['name']);
         }, $branches);
 
-        $features = array_filter($branches, function ($branch) {
-            return (strpos($branch->getName, 'feature') === 0);
+        $features = array_filter($features, function (MergeRequest $feature) {
+            return (strpos($feature->getName(), 'feature') === 0);
         });
 
-
-
-        return $branches;
+        return $features;
     }
 
     /**
-     * @param $branchName
+     * @param MergeRequest $feature
      */
-    public function removeRemoteBranch($branchName)
+    public function removeFeature(MergeRequest $feature)
     {
         $username   = $this->getConfiguration()->getUsername();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
 
         $this->getApiClient()
              ->gitData()
              ->references()
-             ->remove($username, $repository, "heads/{$branchName}");
+             ->remove($username, $repository, "heads/{$feature->getName()}");
     }
 
     /**
-     * @param $branchName
+     * @param Feature $feature
+     *
+     * @return Feature
      */
-    public function createRemoteBranch($branchName)
+    public function startFeature(Feature $feature)
     {
         $username     = $this->getConfiguration()->getUsername();
-        $repository   = $this->getConfiguration()->getRepositoryName();
+        $repository   = $this->getConfiguration()->getRepository();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-        $masterBranchInfo = $this->getApiClient()
-                                 ->gitData()
-                                 ->references()
-                                 ->show($username, $repository, "heads/{$masterBranch}");
+        // Check if feature already cerated on remote
+        if ($feature) {
+            return $feature;
+        } else {
+            $masterBranchInfo = $this->getApiClient()
+                                     ->gitData()
+                                     ->references()
+                                     ->show($username, $repository, "heads/{$masterBranch}");
 
-        $this->getApiClient()
-             ->gitData()
-             ->references()
-             ->create($username, $repository, array(
-                 'ref' => "refs/heads/{$branchName}",
-                 'sha' => $masterBranchInfo['object']['sha'],
-             ));
-    }
+            $featureInfo = $this->getApiClient()
+                 ->gitData()
+                 ->references()
+                 ->create($username, $repository, array(
+                     'ref' => "refs/heads/{$feature->getName()}",
+                     'sha' => $masterBranchInfo['object']['sha'],
+                 ));
 
-    public function removeLabelsFromPullRequest($pullRequestNumber)
-    {
-        $repository = $this->getConfiguration()->getRepositoryName();
-        $username   = $this->getConfiguration()->getUsername();
-        $client     = $this->getApiClient();
-
-        $labels = array(
-            $this->getConfiguration()->getPRLabelForRelease(),
-            $this->getConfiguration()->getPRLabelForTest(),
-        );
-
-        foreach ($labels as $label) {
-            $client->issues()
-                   ->labels()
-                   ->remove($username, $repository, $pullRequestNumber, $label);
+            return $feature;
         }
+
     }
+
+
 
     /**
      * @param $pullRequestNumber
@@ -108,7 +100,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function addLabelToPullRequest($pullRequestNumber, $label)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $client->issues()
@@ -118,7 +110,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
     public function getLabelsByPullRequest($pullRequestNumber)
     {
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
         $client     = $this->getApiClient();
 
@@ -140,7 +132,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getPullRequestsByLabel($label)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $pullRequests = $client
@@ -164,16 +156,16 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param $feature
      *
-     * @return mixed
+     * @return MergeRequest
      */
-    public function getMergeRequestByFeature($feature)
+    public function getMergeRequestByFeature(Feature $feature)
     {
-        $repository   = $this->getConfiguration()->getRepositoryName();
+        $repository   = $this->getConfiguration()->getRepository();
         $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
         $client       = $this->getApiClient();
 
-        $pullRequests = $client
+        $mergeRequests = $client
             ->pullRequest()
             ->all(
                 $username,
@@ -181,23 +173,32 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                 array(
                     'state' => 'open',
                     'type'  => 'pr',
-                    'head'  => "{$username}:{$feature}",
+                    'head'  => "{$username}:{$feature->getName()}",
                     'base'  => $masterBranch,
                 )
             );
+        if (count($mergeRequests) === 1) {
+            $mergeRequestInfo = $mergeRequests[0];
+            $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
+            $mergeRequest->setName($mergeRequest['name'])
+                         ->setUrl($mergeRequest['html_url'])
+                         ->setUrl($mergeRequest['description']);
 
-        return (count($pullRequests) === 1) ? $pullRequests[0] : array();
+            return $mergeRequest;
+        }
+
+        return null;
     }
 
     /**
      * @param $feature
      *
-     * @return string
+     * @return MergeRequest
      */
-    public function openMergeRequest($feature)
+    public function openMergeRequestByFeature(Feature $feature)
     {
         $client       = $this->getApiClient();
-        $repository   = $this->getConfiguration()->getRepositoryName();
+        $repository   = $this->getConfiguration()->getRepository();
         $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
@@ -230,10 +231,10 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $pullRequest['number'];
     }
 
-    public function compareFeatureWithMaster($feature)
+    public function compareFeatureWithMaster(Feature $feature)
     {
         $client       = $this->getApiClient();
-        $repository   = $this->getConfiguration()->getRepositoryName();
+        $repository   = $this->getConfiguration()->getRepository();
         $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
@@ -259,7 +260,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $version                 = Version::fromString($this->getHighestVersion());
         $releaseCandidateVersion = $version->increase('rc');
 
-        return $releaseCandidateVersion->__toString();
+        return $releaseCandidateVersion;
     }
 
     /**
@@ -270,7 +271,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $version        = Version::fromString($this->getHighestVersion());
         $releaseVersion = $version->increase('stable');
 
-        return $releaseVersion->__toString();
+        return $releaseVersion;
     }
 
     /**
@@ -279,7 +280,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     protected function getHighestVersion()
     {
         $username   = $this->getConfiguration()->getUsername();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $client     = $this->getApiClient();
 
         // get Tags
@@ -317,7 +318,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function mergeRemoteBranches($targetBranch, $sourceBranch)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $client->repository()->merge($username, $repository, $targetBranch, $sourceBranch);
@@ -326,7 +327,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function mergeMergeRequest($pullRequestNumber, $type = 'squash')
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $pullRequest      = $client->pullRequest()->show($username, $repository, $pullRequestNumber);
@@ -339,7 +340,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function createReleaseTag($release)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $client->repository()
@@ -357,7 +358,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getRCBranchesListByRelease($releaseVersion)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $branches = $client->repository()->branches($username, $repository);
@@ -370,7 +371,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getLatestReleaseTag()
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $latestRelease = $client->repository()->releases()->latest($username, $repository);
@@ -381,7 +382,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getLatestTestReleaseTag()
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $latestTestReleases = $client->repository()
@@ -399,7 +400,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function createTestReleaseTag($release)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $branchInfo = $client->repository()->branches($username, $repository, $release);
@@ -417,17 +418,13 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                );
     }
 
-    public function closeMergeRequest($featureName)
-    {
-        // TODO: Implement closeMergeRequest() method.
-    }
 
-    public function markMergeRequestReadyForTest(FeatureInterface $feature)
+    public function markMergeRequestReadyForTest(MergeRequest $mergeRequest)
     {
         // TODO: Implement markMergeRequestReadyForTest() method.
     }
 
-    public function markMergeRequestReadyForRelease(FeatureInterface $feature)
+    public function markMergeRequestReadyForRelease(MergeRequest $mergeRequest)
     {
         // TODO: Implement markMergeRequestReadyForRelease() method.
     }
@@ -448,5 +445,53 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         }
 
         return $this->apiClient;
+    }
+
+    public function removeLabelsFromPullRequest($pullRequestNumber)
+    {
+        $repository = $this->getConfiguration()->getRepository();
+        $username   = $this->getConfiguration()->getUsername();
+        $client     = $this->getApiClient();
+
+        $labels = array(
+            $this->getConfiguration()->getPRLabelForRelease(),
+            $this->getConfiguration()->getPRLabelForTest(),
+        );
+
+        foreach ($labels as $label) {
+            $client->issues()
+                   ->labels()
+                   ->remove($username, $repository, $pullRequestNumber, $label);
+        }
+    }
+
+    /**
+     * @param Feature $feature
+     *
+     * @return MergeRequest
+     */
+    public function closeMergeRequestByFeature(Feature $feature)
+    {
+        // TODO: Implement closeMergeRequestByFeature() method.
+    }
+
+    /**
+     * @param Feature $feature
+     *
+     * @return Feature
+     */
+    public function closeFeature(Feature $feature)
+    {
+        // TODO: Implement closeFeature() method.
+    }
+
+    /**
+     * @param Feature $feature
+     *
+     * @return Feature
+     */
+    public function loadFeature(Feature $feature)
+    {
+        // TODO: Implement loadFeature() method.
     }
 }

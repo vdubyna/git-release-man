@@ -6,6 +6,8 @@ use Bitbucket\API\Http\Listener\BasicAuthListener;
 use Bitbucket\API\Repositories\Refs\Branches;
 use Composer\Semver\Semver;
 use InvalidArgumentException;
+use Mirocode\GitReleaseMan\Entity\MergeRequest;
+use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Mirocode\GitReleaseMan\Configuration;
@@ -18,7 +20,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     {
         $username   = $this->getConfiguration()->getUsername();
         $token      = $this->getConfiguration()->getToken();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
 
         $branches = new Branches();
         $branches->getClient()->addListener(
@@ -48,10 +50,10 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param $branchName
      */
-    public function removeRemoteBranch($branchName)
+    public function removeFeature($branchName)
     {
         $username   = $this->getConfiguration()->getUsername();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
 
         $this->getApiClient()
              ->gitData()
@@ -62,10 +64,10 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param $branchName
      */
-    public function createRemoteBranch($branchName)
+    public function buildFeature($branchName)
     {
         $username     = $this->getConfiguration()->getUsername();
-        $repository   = $this->getConfiguration()->getRepositoryName();
+        $repository   = $this->getConfiguration()->getRepository();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
         $masterBranchInfo = $this->getApiClient()
@@ -84,7 +86,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
     public function removeLabelsFromPullRequest($pullRequestNumber)
     {
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
         $client     = $this->getApiClient();
 
@@ -108,7 +110,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function addLabelToPullRequest($pullRequestNumber, $label)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $client->issues()
@@ -118,7 +120,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
     public function getLabelsByPullRequest($pullRequestNumber)
     {
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
         $client     = $this->getApiClient();
 
@@ -140,7 +142,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getPullRequestsByLabel($label)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $pullRequests = $client
@@ -166,9 +168,9 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      *
      * @return mixed
      */
-    public function getMergeRequestByFeature($feature)
+    public function getMergeRequestByFeature(MergeRequest $feature)
     {
-        $repository   = $this->getConfiguration()->getRepositoryName();
+        $repository   = $this->getConfiguration()->getRepository();
         $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
         $client       = $this->getApiClient();
@@ -194,10 +196,10 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      *
      * @return string
      */
-    public function openMergeRequest($feature)
+    public function openMergeRequest(MergeRequest $feature)
     {
         $client       = $this->getApiClient();
-        $repository   = $this->getConfiguration()->getRepositoryName();
+        $repository   = $this->getConfiguration()->getRepository();
         $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
@@ -230,10 +232,10 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $pullRequest['number'];
     }
 
-    public function compareFeatureWithMaster($feature)
+    public function compareFeatureWithMaster(MergeRequest $feature)
     {
         $client       = $this->getApiClient();
-        $repository   = $this->getConfiguration()->getRepositoryName();
+        $repository   = $this->getConfiguration()->getRepository();
         $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
@@ -279,7 +281,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     protected function getHighestVersion()
     {
         $username   = $this->getConfiguration()->getUsername();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $client     = $this->getApiClient();
 
         // get Tags
@@ -317,7 +319,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function mergeRemoteBranches($targetBranch, $sourceBranch)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $client->repository()->merge($username, $repository, $targetBranch, $sourceBranch);
@@ -326,7 +328,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function mergeMergeRequest($pullRequestNumber, $type = 'squash')
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $pullRequest      = $client->pullRequest()->show($username, $repository, $pullRequestNumber);
@@ -339,7 +341,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function createReleaseTag($release)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $client->repository()
@@ -357,7 +359,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getRCBranchesListByRelease($releaseVersion)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $branches = $client->repository()->branches($username, $repository);
@@ -370,7 +372,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getLatestReleaseTag()
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $latestRelease = $client->repository()->releases()->latest($username, $repository);
@@ -381,7 +383,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getLatestTestReleaseTag()
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $latestTestReleases = $client->repository()
@@ -399,7 +401,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function createTestReleaseTag($release)
     {
         $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepositoryName();
+        $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $branchInfo = $client->repository()->branches($username, $repository, $release);
@@ -415,5 +417,35 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
                        'target_commitish' => $branchInfo['commit']['sha'],
                    )
                );
+    }
+
+    /**
+     * @param MergeRequest $mergeRequest
+     *
+     * @return MergeRequest
+     */
+    public function closeMergeRequestByFeature(MergeRequest $mergeRequest)
+    {
+        // TODO: Implement closeMergeRequestByFeature() method.
+    }
+
+    /**
+     * @param MergeRequest $mergeRequest
+     *
+     * @return boolean
+     */
+    public function markMergeRequestReadyForTest(MergeRequest $mergeRequest)
+    {
+        // TODO: Implement markMergeRequestReadyForTest() method.
+    }
+
+    /**
+     * @param MergeRequest $mergeRequest
+     *
+     * @return boolean
+     */
+    public function markMergeRequestReadyForRelease(MergeRequest $mergeRequest)
+    {
+        // TODO: Implement markMergeRequestReadyForRelease() method.
     }
 }
