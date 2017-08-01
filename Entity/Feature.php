@@ -11,7 +11,8 @@ class Feature
     protected $status;
     protected $commit;
     protected $mergeRequestNumber;
-    protected $labels;
+    protected $mergeRequest;
+    protected $labels = array();
 
 
     const STATUS_NEW     = 'new';
@@ -61,7 +62,7 @@ class Feature
     {
         $this->commit = $commit;
         return $this;
-}
+    }
 
     /**
      * @return string
@@ -108,5 +109,25 @@ class Feature
     public function getLabels()
     {
         return $this->labels;
+    }
+
+    /**
+     * @param MergeRequest $mergeRequest
+     *
+     * @return Feature
+     */
+    public function setMergeRequest(MergeRequest $mergeRequest)
+    {
+        $this->mergeRequest = $mergeRequest;
+
+        return $this;
+}
+
+    /**
+     * @return MergeRequest
+     */
+    public function getMergeRequest()
+    {
+        return $this->mergeRequest;
     }
 }
