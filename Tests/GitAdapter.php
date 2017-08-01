@@ -1,52 +1,21 @@
 <?php
+/**
+ * Created by PhpStorm.
+ * User: vdubyna
+ * Date: 8/1/17
+ * Time: 06:50
+ */
 
-namespace Mirocode\GitReleaseMan\GitAdapter;
+namespace Mirocode\GitReleaseMan\Tests;
 
-use Bitbucket\API\Http\Listener\BasicAuthListener;
-use Bitbucket\API\Repositories\Refs\Branches;
-use Composer\Semver\Semver;
-use InvalidArgumentException;
+
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
-use Mirocode\GitReleaseMan\Configuration;
-use Mirocode\GitReleaseMan\Version;
 
-class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
+class GitAdapter extends GitAdapterAbstract implements GitAdapterInterface
 {
-
-    public function getFeaturesList()
-    {
-        $username   = $this->getConfiguration()->getUsername();
-        $token      = $this->getConfiguration()->getToken();
-        $repository = $this->getConfiguration()->getRepository();
-
-        $branches = new Branches();
-        $branches->getClient()->addListener(
-            new BasicAuthListener($username, $token)
-        );
-
-        $branches = $branches->all($username, $repository);
-        $branches = json_decode($branches->getContent(), true);
-        $branches = $branches['values'];
-
-        if (empty($branches)) {
-            return array();
-        }
-
-        $branches = array_map(function ($branch) {
-            return $branch['name'];
-        }, $branches);
-
-        $branches = array_filter($branches, function ($branch) {
-            return (strpos($branch, 'feature') === 0);
-        });
-
-
-        return $branches;
-    }
-
 
     /**
      * @param Feature $feature
@@ -55,7 +24,8 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function closeFeature(Feature $feature)
     {
-        // TODO: Implement closeFeature() method.
+        $feature->setStatus(Feature::STATUS_CLOSE);
+        return $feature;
     }
 
     /**
@@ -65,7 +35,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function loadFeature(Feature $feature)
     {
-        // TODO: Implement loadFeature() method.
+        return $feature;
     }
 
     /**
@@ -75,7 +45,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getMergeRequestByFeature(Feature $feature)
     {
-        // TODO: Implement getMergeRequestByFeature() method.
+        return new MergeRequest('12');
     }
 
     /**
@@ -86,6 +56,14 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function openMergeRequestByFeature(Feature $feature)
     {
         // TODO: Implement openMergeRequestByFeature() method.
+    }
+
+    /**
+     * @return Feature[]
+     */
+    public function getFeaturesList()
+    {
+        return array(new Feature('feature-my-cool-library'));
     }
 
     /**
@@ -176,6 +154,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function startFeature(Feature $feature)
     {
-        // TODO: Implement startFeature() method.
+        $feature->setStatus(Feature::STATUS_NEW);
+        return $feature;
     }
 }

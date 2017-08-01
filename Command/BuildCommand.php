@@ -3,6 +3,7 @@
 namespace Mirocode\GitReleaseMan\Command;
 
 use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
+use Mirocode\GitReleaseMan\Entity\Feature;
 use Symfony\Component\Console\Input\InputArgument;
 use Mirocode\GitReleaseMan\ExitException as ExitException;
 
@@ -12,6 +13,7 @@ class BuildCommand extends Command
         'init'                => 'init',
         'test'                => 'test',
         'release'             => 'release',
+        'features-list'       => 'featuresList',
         'latest-release'      => 'latestRelease',
         'latest-test-release' => 'latestTestRelease',
     );
@@ -53,7 +55,7 @@ class BuildCommand extends Command
         $this->getStyleHelper()->title("Create Release Candidate branch to do testing");
         $this->confirmOrExit('Do you want to create RC for testing?');
 
-        $testLabel               = $this->getConfiguration()->getPRLabelForTest();
+        $testLabel               = $this->getConfiguration()->getLabelForTest();
         $releaseCandidateVersion = $this->getGitAdapter()->getReleaseCandidateVersion();
         $pullRequests            = $this->getGitAdapter()->getPullRequestsByLabel($testLabel);
 
@@ -81,7 +83,7 @@ class BuildCommand extends Command
         $this->getStyleHelper()->title("Merge ready for release branches and create Release TAG");
         $this->confirmOrExit('Do you want to continue and make release?');
 
-        $releaseLabel = $this->getConfiguration()->getPRLabelForRelease();
+        $releaseLabel = $this->getConfiguration()->getLabelForRelease();
         $pullRequests = $this->getGitAdapter()->getPullRequestsByLabel($releaseLabel);
 
         if (empty($pullRequests)) {
@@ -117,6 +119,34 @@ class BuildCommand extends Command
         }
 
         $this->getStyleHelper()->success("Release \"{$releaseVersion}\" generated.");
+    }
+
+    /**
+     * List available features
+     */
+    public function featuresList()
+    {
+        $features = $this->getGitAdapter()->getFeaturesList();
+        $headers  = array('Feature Name', 'Merge Request');
+
+        $rows = array_map(function (Feature $feature) {
+            $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
+
+            if (!empty($mergeRequest)) {
+                $mergeRequestMessage = "Merge Request: #{$mergeRequest->getNumber()} - {$mergeRequest->getName()}\n" .
+                    "{$mergeRequest->getUrl()}";
+            } else {
+                $mergeRequestMessage = "There is no open MergeRequest";
+            }
+
+            return array(
+                $feature->getName(),
+                $mergeRequestMessage,
+            );
+        }, $features);
+
+        $this->getStyleHelper()->section("Features list");
+        $this->getStyleHelper()->table($headers, $rows);
     }
 
     public function latestRelease()

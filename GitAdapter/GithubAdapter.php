@@ -21,7 +21,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
 
     /**
-     * @return MergeRequest[]
+     * @return Feature[]
      */
     public function getFeaturesList()
     {
@@ -447,21 +447,21 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $this->apiClient;
     }
 
-    public function removeLabelsFromPullRequest($pullRequestNumber)
+    public function removeLabelsFromMergeRequest($mergeRequestNumber)
     {
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
         $client     = $this->getApiClient();
 
         $labels = array(
-            $this->getConfiguration()->getPRLabelForRelease(),
-            $this->getConfiguration()->getPRLabelForTest(),
+            $this->getConfiguration()->getLabelForRelease(),
+            $this->getConfiguration()->getLabelForTest(),
         );
 
         foreach ($labels as $label) {
             $client->issues()
                    ->labels()
-                   ->remove($username, $repository, $pullRequestNumber, $label);
+                   ->remove($username, $repository, $mergeRequestNumber, $label);
         }
     }
 
@@ -493,5 +493,18 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function loadFeature(Feature $feature)
     {
         // TODO: Implement loadFeature() method.
+    }
+
+    /**
+     * @param $feature
+     *
+     * @return Feature
+     */
+    public function markFeatureAsNew($feature)
+    {
+        $mergeRequest = $this->getMergeRequestByFeature($feature);
+        if ($mergeRequest) {
+            $this->removeLabelsFromMergeRequest($mergeRequest->getNumber());
+        }
     }
 }

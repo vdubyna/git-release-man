@@ -5,6 +5,7 @@ namespace Mirocode\GitReleaseMan\Command;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -36,7 +37,7 @@ class FeatureCommand extends Command
     {
         $this->setName('git-release:feature')
              ->addArgument('action', InputArgument::REQUIRED, 'Action')
-             ->addOption('name', null, InputArgument::REQUIRED, 'Feature Name')
+             ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Feature Name')
              ->setDescription('Feature git workflow tool')
              ->setHelp('Feature actions: list, open, close, reopen, test, release, info');
         parent::configure();
@@ -71,26 +72,31 @@ class FeatureCommand extends Command
     {
         $feature = $this->getFeature();
 
-        $this->getStyleHelper()->title("Start new feature {$feature->getName()}");
-        if (!$this->isNoQuestionsEnabled()) {
+        $this->getStyleHelper()->title("Start feature {$feature->getName()}");
+        if ($feature->getStatus() === Feature::STATUS_NEW) {
             $this->confirmOrExit("Do you want to continue this operation:");
+
+            $feature = $this->getGitAdapter()->startFeature($feature);
+            if ($feature->getStatus() === Feature::STATUS_STARTED) {
+                $this->getStyleHelper()
+                     ->success("Feature {$feature->getName()} successfully created on remote repository.");
+            }
+        } elseif ($feature->getStatus() === Feature::STATUS_STARTED) {
+            $this->getStyleHelper()
+                 ->success(
+                     "Feature {$feature->getName()} already exists on {$this->getConfiguration()->getGitAdapter()}."
+                 );
+        } elseif ($feature->getStatus() === Feature::STATUS_TEST
+            || $feature->getStatus() === Feature::STATUS_RELEASE
+        ) {
+            $this->getGitAdapter()->markFeatureAsNew($feature);
+        } else {
+            $this->getStyleHelper()
+                 ->warning(
+                     "Feature {$feature->getName()} status {$feature->getStatus()} is invalid for this operation."
+                 );
         }
 
-        // TODO verify the feature already exists
-        //$this->getStyleHelper()->warning("This action will remove \"release\" and \"test\" labels");
-        //$this->confirmOrExit("Do you want to continue this operation:");
-        //
-        //$this->getGitAdapter()->closeMergeRequestByFeature($feature);
-        //
-        //$this->getStyleHelper()->success("Labels removed from remote repository.");
-        //$this->getStyleHelper()->note("Feature is ready to continue development, " .
-        //    "changes will not be included into test or release builds");
-
-
-        $feature = $this->getGitAdapter()->startFeature($feature);
-        // TODO verify exceptions and feature status
-        $this->getStyleHelper()
-             ->success("Feature {$feature->getName()} successfully created on remote repository.");
     }
 
     /**
@@ -101,41 +107,11 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Close feature \"{$feature->getName()}\".");
-        if (!$this->isNoQuestionsEnabled()) {
-            $this->getStyleHelper()->warning("Delete remote branch automatically close Merge Request");
-            $this->confirmOrExit("Do you want to continue this operation:");
-        }
+        $this->getStyleHelper()->warning("Delete remote branch automatically close Merge Request");
+        $this->confirmOrExit("Do you want to continue this operation:");
         $feature = $this->getGitAdapter()->closeFeature($feature);
         // TODO verify exceptions and feature status
         $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" removed from remote repository.");
-    }
-
-    /**
-     * List available features
-     */
-    public function featuresList()
-    {
-        $features = $this->getGitAdapter()->getFeaturesList();
-        $headers  = array('Feature Name', 'Merge Request');
-
-        $rows = array_map(function (Feature $feature) {
-            $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
-
-            if (!empty($mergeRequest)) {
-                $mergeRequestMessage = "Merge Request: #{$mergeRequest->getNumber()} - {$mergeRequest->getName()}\n" .
-                    "{$mergeRequest->getUrl()}";
-            } else {
-                $mergeRequestMessage = "There is no open MergeRequest";
-            }
-
-            return array(
-                $feature->getName(),
-                $mergeRequestMessage,
-            );
-        }, $features);
-
-        $this->getStyleHelper()->section("Features list");
-        $this->getStyleHelper()->table($headers, $rows);
     }
 
     /**
@@ -146,9 +122,7 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for testing");
-        if (!$this->isNoQuestionsEnabled()) {
-            $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
-        }
+        $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
 
         $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
 
@@ -178,9 +152,7 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for release");
-        if (!$this->isNoQuestionsEnabled()) {
-            $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" to be released:");
-        }
+        $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" to be released:");
 
         $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
 
@@ -199,7 +171,7 @@ class FeatureCommand extends Command
     /**
      * @return Feature
      */
-    protected function getFeature()
+    public function getFeature()
     {
         return $this->feature;
     }

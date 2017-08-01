@@ -3,6 +3,7 @@
 namespace Mirocode\GitReleaseMan\Command;
 
 use Mirocode\GitReleaseMan\Configuration;
+use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -20,7 +21,7 @@ abstract class AbstractCommand extends Command
     protected $configuration;
 
     /**
-     * @var GitAdapterInterface
+     * @var GitAdapterAbstract
      */
     protected $gitAdapter;
 
@@ -28,10 +29,9 @@ abstract class AbstractCommand extends Command
      * @var SymfonyStyle
      */
     protected $styleHelper;
-    protected $noQuestions;
 
     /**
-     * @return GitAdapterInterface
+     * @return GitAdapterAbstract
      */
     public function getGitAdapter()
     {
@@ -56,23 +56,15 @@ abstract class AbstractCommand extends Command
     }
 
     /**
-     * @param mixed $noQuestions
+     * @param GitAdapterInterface $gitAdapter
      *
      * @return AbstractCommand
      */
-    public function setNoQuestions($noQuestions)
+    public function setGitAdapter($gitAdapter)
     {
-        $this->noQuestions = $noQuestions;
+        $this->gitAdapter = $gitAdapter;
 
         return $this;
-    }
-
-    /**
-     * @return boolean
-     */
-    public function isNoQuestionsEnabled()
-    {
-        return $this->noQuestions;
     }
 
     protected function configure()
@@ -80,10 +72,7 @@ abstract class AbstractCommand extends Command
         $this->addOption('gitadapter', null, InputOption::VALUE_OPTIONAL, "Git Adapter")
             ->addOption('username', null, InputOption::VALUE_OPTIONAL, "Username")
             ->addOption('token', null, InputOption::VALUE_OPTIONAL, "Token")
-            ->addOption('repository', null, InputOption::VALUE_OPTIONAL, "Repository name")
-            ->addOption('no-questions', 'nq', InputOption::VALUE_OPTIONAL, "Do not ask any interactive question");
-
-        // TODO add configuration file option
+            ->addOption('repository', null, InputOption::VALUE_OPTIONAL, "Repository name");
 
         parent::configure();
     }
@@ -105,9 +94,6 @@ abstract class AbstractCommand extends Command
         }
         if ($input->getOption('repository')) {
             $this->getConfiguration()->setRepository($input->getOption('repository'));
-        }
-        if ($input->getOption('no-questions')) {
-            $this->setNoQuestions(true);
         }
 
         if (key_exists($action, $this->allowedActions) && method_exists($this, $this->allowedActions[$action])) {

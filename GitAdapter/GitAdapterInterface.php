@@ -37,7 +37,7 @@ interface GitAdapterInterface
     public function openMergeRequestByFeature(Feature $feature);
 
     /**
-     * @return MergeRequest[]
+     * @return Feature[]
      */
     public function getFeaturesList();
 
@@ -89,6 +89,13 @@ interface GitAdapterInterface
      * @return MergeRequest
      */
     public function markMergeRequestReadyForRelease(MergeRequest $mergeRequest);
+
+    /**
+     * @param $feature
+     *
+     * @return Feature
+     */
+    public function markFeatureAsNew($feature);
 
     /**
      * @param Feature $feature

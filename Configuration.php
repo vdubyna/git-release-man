@@ -79,12 +79,12 @@ class Configuration
         return $this->gitAdapter;
     }
 
-    public function getPRLabelForTest()
+    public function getLabelForTest()
     {
-        return 'IN-BETA';
+        return 'IN-TEST';
     }
 
-    public function getPRLabelForRelease()
+    public function getLabelForRelease()
     {
         return 'OK-PROD';
     }
