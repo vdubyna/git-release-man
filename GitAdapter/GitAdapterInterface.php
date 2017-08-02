@@ -39,6 +39,13 @@ interface GitAdapterInterface
     public function getLatestTestReleaseTag();
 
     /**
+     * @param $testLabel
+     *
+     * @return MergeRequest[]
+     */
+    public function getMergeRequestsByLabel($testLabel);
+
+    /**
      * @param Feature $feature
      *
      * @return Feature

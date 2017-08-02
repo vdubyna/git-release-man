@@ -112,15 +112,15 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param $label
      *
-     * @return array
+     * @return MergeRequest[]
      */
-    public function getPullRequestsByLabel($label)
+    public function getMergeRequestsByLabel($label)
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
-        $pullRequests = $client
+        $issues = $client
             ->issues()
             ->all(
                 $username,
@@ -128,14 +128,19 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
                 array('state' => 'open', 'labels' => $label)
             );
 
-        $pullRequests = array_filter($pullRequests, function ($pullRequest) {
-            return isset($pullRequest['pull_request']);
+        $issues = array_filter($issues, function ($item) {
+            return isset($item['pull_request']);
         });
 
         // Replace issue object with pull request object
-        return array_map(function ($pullRequest) use ($client, $username, $repository) {
-            return $client->pullRequest()->show($username, $repository, $pullRequest['number']);
-        }, $pullRequests);
+        return array_map(function ($item) use ($client, $username, $repository) {
+            $mergeRequestInfo = $client->pullRequest()->show($username, $repository, $item['number']);
+
+            $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
+            $mergeRequest->setName($mergeRequestInfo['title']);
+
+            return $mergeRequest;
+        }, $issues);
     }
 
     /**
@@ -201,7 +206,6 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             $repository,
             $pullRequest['number']
         );
-        print_r($pullRequestCommits);
 
         $pullRequestDescription = array_reduce($pullRequestCommits, function ($message, $commit) {
             return $message . '* ' . $commit['commit']['message'] . PHP_EOL;
@@ -214,7 +218,6 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             array('body' => $pullRequestDescription)
         );
 
-        print_r($mergeRequestInfo);
         $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
 
         return $mergeRequest;

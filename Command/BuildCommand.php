@@ -29,24 +29,28 @@ class BuildCommand extends Command
 
     public function init()
     {
-        if (!$this->isNoQuestionsEnabled()) {
-            $confirmationMassage = ($this->getConfiguration()->isConfigurationExists())
-                ? "Configuration already exists in current repository?"
-                : "Do you want to init git-release-man configuration in current repository?";
-            $this->confirmOrExit($confirmationMassage);
+        $confirmationMassage = ($this->getConfiguration()->isConfigurationExists())
+            ? "Configuration already exists in current repository?"
+            : "Do you want to init git-release-man configuration in current repository?";
+        $this->confirmOrExit($confirmationMassage);
 
-            $gitAdapter     = $this->askAndChooseValueOrExit('What is your gitAdapter (github|bitbucket)?',
-                array('github', 'bitbucket', 'gitlab'));
-            $username       = $this->askAndGetValueOrExit('What is your name?');
-            $token          = $this->askAndGetValueOrExit('What is your token?');
-            $repositoryName = $this->askAndGetValueOrExit('What is your repository name?');
-        } else {
-            // When interaction mode disabled, options loaded into configuration object
-            $gitAdapter     = $this->getConfiguration()->getGitAdapter();
-            $username       = $this->getConfiguration()->getUsername();
-            $token          = $this->getConfiguration()->getToken();
-            $repositoryName = $this->getConfiguration()->getRepository();
-        }
+        $gitAdapter = ($this->getConfiguration()->getGitAdapter())
+            ? $this->getConfiguration()->getGitAdapter()
+            : $this->askAndChooseValueOrExit(
+                'What is your gitAdapter (github|bitbucket)?', array('github', 'bitbucket', 'gitlab'));
+
+        $username = ($this->getConfiguration()->getUsername())
+            ? $this->getConfiguration()->getUsername()
+            : $this->askAndGetValueOrExit('What is your name?');
+
+        $token = ($this->getConfiguration())
+            ? ($this->getConfiguration()->getToken())
+            : $this->askAndGetValueOrExit('What is your token?');
+
+        $repositoryName = ($this->getConfiguration()->getRepository())
+            ? $this->getConfiguration()->getRepository()
+            : $this->askAndGetValueOrExit('What is your repository name?');
+
         $this->getConfiguration()->initConfiguration($username, $token, $repositoryName, $gitAdapter);
     }
 
@@ -55,27 +59,29 @@ class BuildCommand extends Command
         $this->getStyleHelper()->title("Create Release Candidate branch to do testing");
         $this->confirmOrExit('Do you want to create RC for testing?');
 
-        $testLabel               = $this->getConfiguration()->getLabelForTest();
-        $releaseCandidateVersion = $this->getGitAdapter()->getReleaseCandidateVersion();
-        $pullRequests            = $this->getGitAdapter()->getPullRequestsByLabel($testLabel);
+        $testLabel    = $this->getConfiguration()
+                             ->getLabelForTest();
+        $pullRequests = $this->getGitAdapter()
+                             ->getMergeRequestsByLabel($testLabel);
 
         if (empty($pullRequests)) {
             $this->getStyleHelper()->error('There is no pull requests ready for test.');
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
 
-        $this->getGitAdapter()->buildFeature($releaseCandidateVersion);
-        $this->getStyleHelper()->success("Create Release Candidate \"{$releaseCandidateVersion}\" created");
+        $testVersion = $this->getGitAdapter()->getTestVersion();
+        $this->getGitAdapter()->buildFeature($testVersion);
+        $this->getStyleHelper()->success("Create Release Candidate \"{$testVersion}\" created");
 
         foreach ($pullRequests as $pullRequest) {
             $sourceBranch = $pullRequest['head']['ref'];
-            $this->getGitAdapter()->mergeRemoteBranches($releaseCandidateVersion, $sourceBranch);
+            $this->getGitAdapter()->mergeRemoteBranches($testVersion, $sourceBranch);
             $this->getStyleHelper()->success("Branch \"{$sourceBranch}\" merged");
         }
         // TODO Rollback process
-        $this->getGitAdapter()->createTestReleaseTag($releaseCandidateVersion);
+        $this->getGitAdapter()->createTestReleaseTag($testVersion);
 
-        $this->getStyleHelper()->success("New Release Candidate \"{$releaseCandidateVersion}\" is ready for testing");
+        $this->getStyleHelper()->success("New Release Candidate \"{$testVersion}\" is ready for testing");
     }
 
     public function release()
