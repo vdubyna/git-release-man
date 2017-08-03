@@ -9,30 +9,28 @@ use Symfony\Component\Console\Application;
 
 class BuildCommandTest extends TestCase
 {
-    public function testExecuteInitCommand()
+
+    public function testExecuteBuildTestStart()
+    {
+        $command = $this->getBuildCommand();
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(array(
+            'command' => $command->getName(),
+            'action'  => 'test',
+        ), array('interactive' => false));
+
+        $output = $commandTester->getDisplay();
+        $this->assertContains('Start new feature', $output);
+    }
+
+    /**
+     * @return BuildCommand
+     */
+    public function getBuildCommand()
     {
         $command = new BuildCommand();
         $command->setApplication(new Application());
 
-        $commandTester = new CommandTester($command);
-        $commandTester->execute(array(
-            'command' => $command->getName(),
-            'action'  => 'init',
-            '--gitadapter'   => 'github',
-            '--username'     => 'my-username',
-            '--token'        => 'my-token',
-            '--repository'   => 'check-repository',
-            '--no-questions' => 'true',
-        ));
-
-        $this->assertEquals('github', $command->getConfiguration()->getGitAdapter());
-        $this->assertEquals('my-username', $command->getConfiguration()->getUsername());
-        $this->assertEquals('my-token', $command->getConfiguration()->getToken());
-        $this->assertEquals('check-repository', $command->getConfiguration()->getRepository());
-    }
-
-    public function tearDown()
-    {
-        unlink(__DIR__ . '/.git-release-man.yml');
+        return $command;
     }
 }

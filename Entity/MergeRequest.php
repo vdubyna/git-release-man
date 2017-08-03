@@ -10,6 +10,7 @@ class MergeRequest
     protected $name;
     protected $url;
     protected $description;
+    protected $isMergeable;
 
     public function __construct($number)
     {
@@ -89,6 +90,26 @@ class MergeRequest
     public function setNumber($number)
     {
         $this->number = $number;
+
+        return $this;
+    }
+
+    /**
+     * @return boolean
+     */
+    public function getIsMergeable()
+    {
+        return $this->isMergeable;
+    }
+
+    /**
+     * @param mixed $isMergeable
+     *
+     * @return MergeRequest
+     */
+    public function setIsMergeable($isMergeable)
+    {
+        $this->isMergeable = $isMergeable;
 
         return $this;
     }

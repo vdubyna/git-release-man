@@ -4,6 +4,8 @@ namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
+use Mirocode\GitReleaseMan\Entity\Feature;
+use Mirocode\GitReleaseMan\Entity\Release;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 
 abstract class GitAdapterAbstract implements GitAdapterInterface
@@ -35,7 +37,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
         $this->featureInfo = $featureInfo;
 
         return $this;
-}
+    }
 
     /**
      * @return mixed

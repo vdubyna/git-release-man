@@ -4,6 +4,7 @@ namespace Mirocode\GitReleaseMan\Command;
 
 use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
 use Mirocode\GitReleaseMan\Entity\Feature;
+use Mirocode\GitReleaseMan\Entity\Release;
 use Symfony\Component\Console\Input\InputArgument;
 use Mirocode\GitReleaseMan\ExitException as ExitException;
 
@@ -30,7 +31,7 @@ class BuildCommand extends Command
     public function init()
     {
         $confirmationMassage = ($this->getConfiguration()->isConfigurationExists())
-            ? "Configuration already exists in current repository?"
+            ? "Configuration already exists in current repository, do you want to overwrite it?"
             : "Do you want to init git-release-man configuration in current repository?";
         $this->confirmOrExit($confirmationMassage);
 
@@ -57,31 +58,31 @@ class BuildCommand extends Command
     public function test()
     {
         $this->getStyleHelper()->title("Create Release Candidate branch to do testing");
-        $this->confirmOrExit('Do you want to create RC for testing?');
+        $this->confirmOrExit('Do you want to create Release Candidate branch for testing?');
 
-        $testLabel    = $this->getConfiguration()
-                             ->getLabelForTest();
-        $pullRequests = $this->getGitAdapter()
+        $testLabel = $this->getConfiguration()->getLabelForTest();
+
+        $mergeRequests = $this->getGitAdapter()
                              ->getMergeRequestsByLabel($testLabel);
 
-        if (empty($pullRequests)) {
-            $this->getStyleHelper()->error('There is no pull requests ready for test.');
+        if (empty($mergeRequests)) {
+            $this->getStyleHelper()->error('There is no merge requests ready for test.');
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
 
-        $testVersion = $this->getGitAdapter()->getTestVersion();
-        $this->getGitAdapter()->buildFeature($testVersion);
-        $this->getStyleHelper()->success("Create Release Candidate \"{$testVersion}\" created");
-
-        foreach ($pullRequests as $pullRequest) {
-            $sourceBranch = $pullRequest['head']['ref'];
-            $this->getGitAdapter()->mergeRemoteBranches($testVersion, $sourceBranch);
-            $this->getStyleHelper()->success("Branch \"{$sourceBranch}\" merged");
+        foreach ($mergeRequests as $mergeRequest) {
+            if (!$mergeRequest->getIsMergeable()) {
+                throw new ExitException("Merge Request #{$mergeRequest->getNumber()} {$mergeRequest->getName()} " .
+                    "can not be merged. Please, fix it before this action.");
+            }
         }
-        // TODO Rollback process
-        $this->getGitAdapter()->createTestReleaseTag($testVersion);
 
-        $this->getStyleHelper()->success("New Release Candidate \"{$testVersion}\" is ready for testing");
+        $rcVersion = $this->getGitAdapter()->getReleaseCandidateVersion();
+        $releaseCandidate = $this->getGitAdapter()->buildReleaseCandidate($mergeRequests, $rcVersion);
+
+        $this->getStyleHelper()
+             ->success("New Release Candidate \"{$releaseCandidate->getName()}\" is ready for testing");
+
     }
 
     public function release()

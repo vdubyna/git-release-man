@@ -7,6 +7,7 @@ use Github\Client;
 use InvalidArgumentException;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
+use Mirocode\GitReleaseMan\Entity\Release;
 use Mirocode\GitReleaseMan\ExitException;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
@@ -37,7 +38,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             return $this->buildFeature($branch['name']);
         }, $branches);
 
-        $features = array_filter($features, function (MergeRequest $feature) {
+        $features = array_filter($features, function (Feature $feature) {
             return (strpos($feature->getName(), 'feature') === 0);
         });
 
@@ -79,6 +80,55 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
+     * @param Version $version
+     *
+     * @return Release
+     */
+    public function startReleaseCandidate($version)
+    {
+        $username     = $this->getConfiguration()->getUsername();
+        $repository   = $this->getConfiguration()->getRepository();
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+
+        $masterBranchInfo = $this->getApiClient()
+                                 ->gitData()
+                                 ->references()
+                                 ->show($username, $repository, "heads/{$masterBranch}");
+
+        $this->getApiClient()
+            ->gitData()
+            ->references()
+            ->create($username, $repository, array(
+                'ref' => "refs/heads/{$version}",
+                'sha' => $masterBranchInfo['object']['sha'],
+            ));
+
+        $releaseCandidate = new Release($version->__toString());
+
+        return $releaseCandidate;
+    }
+
+    /**
+     * @param Feature[] $mergeRequests
+     * @param Version   $releaseCandidateVersion
+     *
+     * @return Release
+     */
+    public function buildReleaseCandidate($mergeRequests, $releaseCandidateVersion)
+    {
+        $releaseCandidate = $this->startReleaseCandidate($releaseCandidateVersion);
+
+        foreach ($mergeRequests as $mergeRequest) {
+            $this->pushFeatureIntoReleaseCandidate($releaseCandidate, $mergeRequest);
+            $releaseCandidate->addMergeRequest($mergeRequest);
+        }
+
+        $this->createReleaseTag($releaseCandidateVersion, true);
+
+        return $releaseCandidate;
+    }
+
+    /**
      * @param $pullRequestNumber
      * @param $label
      *
@@ -112,7 +162,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param $label
      *
-     * @return MergeRequest[]
+     * @return Feature[]
      */
     public function getMergeRequestsByLabel($label)
     {
@@ -136,15 +186,18 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return array_map(function ($item) use ($client, $username, $repository) {
             $mergeRequestInfo = $client->pullRequest()->show($username, $repository, $item['number']);
 
-            $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
-            $mergeRequest->setName($mergeRequestInfo['title']);
+            $mergeRequest = new Feature($mergeRequestInfo['number']);
+            $mergeRequest->setName($mergeRequestInfo['title'])
+                         ->setIsMergeable($mergeRequestInfo['mergeable'])
+                         ->setDescription($mergeRequestInfo['body'])
+                         ->setUrl($mergeRequestInfo['html_url']);
 
             return $mergeRequest;
         }, $issues);
     }
 
     /**
-     * @param $feature
+     * @param Feature $feature
      *
      * @return MergeRequest
      */
@@ -192,19 +245,19 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-        $pullRequest = $client
+        $mergeRequest = $client
             ->pullRequest()
             ->create($username, $repository, array(
                 'base'  => $masterBranch,
                 'head'  => "{$username}:{$feature->getName()}",
                 'title' => ucfirst(str_replace('_', ' ', $feature->getName())),
-                'body'  => 'PR Description',
+                'body'  => 'Description',
             ));
 
         $pullRequestCommits = $client->pullRequest()->commits(
             $username,
             $repository,
-            $pullRequest['number']
+            $mergeRequest['number']
         );
 
         $pullRequestDescription = array_reduce($pullRequestCommits, function ($message, $commit) {
@@ -214,7 +267,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $mergeRequestInfo = $client->pullRequest()->update(
             $username,
             $repository,
-            $pullRequest['number'],
+            $mergeRequest['number'],
             array('body' => $pullRequestDescription)
         );
 
@@ -307,13 +360,18 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $version;
     }
 
-    public function mergeRemoteBranches($targetBranch, $sourceBranch)
+    /**
+     * @param Release $release
+     * @param Feature $feature
+     *
+     */
+    public function pushFeatureIntoReleaseCandidate(Release $release, Feature $feature)
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
-        $client->repository()->merge($username, $repository, $targetBranch, $sourceBranch);
+        $client->repository()->merge($username, $repository, $release->getName(), $feature->getName());
     }
 
     public function mergeMergeRequest($pullRequestNumber, $type = 'squash')
@@ -329,23 +387,29 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             $pullRequest['body'], $pullRequest['head']['sha'], $type, $pullRequestTitle);
     }
 
-    public function createReleaseTag($release)
+    public function createReleaseTag($release, $isReleaseCandidate)
     {
-        $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
+        $client       = $this->getApiClient();
+        $repository   = $this->getConfiguration()->getRepository();
+        $username     = $this->getConfiguration()->getUsername();
+
+        $releaseBranch = ($isReleaseCandidate) ? $release : $this->getConfiguration()->getMasterBranch();
+        $release .= ($isReleaseCandidate) ? '+' . date('Y-m-d_h-i-s') : '';
+
+        $releaseBranchInfo = $client->repository()->branches($username, $repository, $releaseBranch);
 
         $client->repository()
                ->releases()
-               ->create(
-                   $username,
-                   $repository,
+               ->create($username, $repository,
                    array(
-                       'tag_name' => $release,
-                       'name'     => $release,
+                       'tag_name'         => $release,
+                       'name'             => $release,
+                       'prerelease'       => true,
+                       'target_commitish' => $releaseBranchInfo['commit']['sha'],
                    )
                );
     }
+
 
     public function getRCBranchesListByRelease($releaseVersion)
     {
@@ -387,27 +451,6 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $latestTestRelease = array_shift($latestTestReleases);
 
         return $latestTestRelease['tag_name'];
-    }
-
-    public function createTestReleaseTag($release)
-    {
-        $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
-
-        $branchInfo = $client->repository()->branches($username, $repository, $release);
-        $release    .= '+' . date('Y-m-d_h-i-s');
-
-        $client->repository()
-               ->releases()
-               ->create($username, $repository,
-                   array(
-                       'tag_name'         => $release,
-                       'name'             => $release,
-                       'prerelease'       => true,
-                       'target_commitish' => $branchInfo['commit']['sha'],
-                   )
-               );
     }
 
     /**

@@ -4,6 +4,8 @@ namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
+use Mirocode\GitReleaseMan\Entity\Release;
+use Mirocode\GitReleaseMan\Version;
 
 interface GitAdapterInterface
 {
@@ -18,14 +20,14 @@ interface GitAdapterInterface
     /**
      * @param Feature $feature
      *
-     * @return MergeRequest|null
+     * @return MergeRequest
      */
     public function getMergeRequestByFeature(Feature $feature);
 
     /**
      * @param Feature $feature
      *
-     * @return MergeRequest|null
+     * @return MergeRequest
      */
     public function openMergeRequestByFeature(Feature $feature);
 
@@ -72,4 +74,32 @@ interface GitAdapterInterface
      * @return Feature
      */
     public function startFeature(Feature $feature);
+
+    /**
+     * @return Version
+     */
+    public function getReleaseCandidateVersion();
+
+
+    /**
+     * @return Version
+     */
+    public function getReleaseVersion();
+
+
+    /**
+     * @param Feature[] $mergeRequests
+     * @param string    $releaseCandidateVersion
+     *
+     * @return Release
+     */
+    public function buildReleaseCandidate($mergeRequests, $releaseCandidateVersion);
+
+    /**
+     * @param Release $release
+     * @param Feature $feature
+     *
+     * @return void
+     */
+    public function pushFeatureIntoReleaseCandidate(Release $release, Feature $feature);
 }

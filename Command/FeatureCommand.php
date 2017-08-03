@@ -3,7 +3,7 @@
 namespace Mirocode\GitReleaseMan\Command;
 
 use Mirocode\GitReleaseMan\Entity\Feature;
-use Mirocode\GitReleaseMan\Entity\MergeRequest;
+use Mirocode\GitReleaseMan\Entity\Feature;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;

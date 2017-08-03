@@ -10,7 +10,7 @@ namespace Mirocode\GitReleaseMan\Tests;
 
 
 use Mirocode\GitReleaseMan\Entity\Feature;
-use Mirocode\GitReleaseMan\Entity\MergeRequest;
+use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 
@@ -41,17 +41,17 @@ class GitAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param Feature $feature
      *
-     * @return MergeRequest|null
+     * @return Feature|null
      */
     public function getMergeRequestByFeature(Feature $feature)
     {
-        return new MergeRequest('12');
+        return new Feature('12');
     }
 
     /**
      * @param Feature $feature
      *
-     * @return MergeRequest|null
+     * @return Feature|null
      */
     public function openMergeRequestByFeature(Feature $feature)
     {
@@ -120,7 +120,7 @@ class GitAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param Feature $feature
      *
-     * @return MergeRequest
+     * @return Feature
      */
     public function closeMergeRequestByFeature(Feature $feature)
     {
@@ -128,21 +128,21 @@ class GitAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
-     * @param MergeRequest $mergeRequest
+     * @param Feature $mergeRequest
      *
-     * @return MergeRequest
+     * @return Feature
      */
-    public function markMergeRequestReadyForTest(MergeRequest $mergeRequest)
+    public function markMergeRequestReadyForTest(Feature $mergeRequest)
     {
         // TODO: Implement markMergeRequestReadyForTest() method.
     }
 
     /**
-     * @param MergeRequest $mergeRequest
+     * @param Feature $mergeRequest
      *
-     * @return MergeRequest
+     * @return Feature
      */
-    public function markMergeRequestReadyForRelease(MergeRequest $mergeRequest)
+    public function markMergeRequestReadyForRelease(Feature $mergeRequest)
     {
         // TODO: Implement markMergeRequestReadyForRelease() method.
     }
