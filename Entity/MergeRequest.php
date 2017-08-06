@@ -11,6 +11,9 @@ class MergeRequest
     protected $url;
     protected $description;
     protected $isMergeable;
+    protected $sourceBranch;
+    protected $targetBranch;
+    protected $commit;
 
     public function __construct($number)
     {
@@ -112,6 +115,66 @@ class MergeRequest
         $this->isMergeable = $isMergeable;
 
         return $this;
+    }
+
+    /**
+     * @param mixed $sourceBranch
+     *
+     * @return MergeRequest
+     */
+    public function setSourceBranch($sourceBranch)
+    {
+        $this->sourceBranch = $sourceBranch;
+
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getSourceBranch()
+    {
+        return $this->sourceBranch;
+    }
+
+    /**
+     * @param mixed $targetBranch
+     *
+     * @return MergeRequest
+     */
+    public function setTargetBranch($targetBranch)
+    {
+        $this->targetBranch = $targetBranch;
+
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getTargetBranch()
+    {
+        return $this->targetBranch;
+    }
+
+    /**
+     * @param mixed $commit
+     *
+     * @return MergeRequest
+     */
+    public function setCommit($commit)
+    {
+        $this->commit = $commit;
+
+        return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getCommit()
+    {
+        return $this->commit;
     }
 
 

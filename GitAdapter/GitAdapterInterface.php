@@ -40,12 +40,6 @@ interface GitAdapterInterface
 
     public function getLatestTestReleaseTag();
 
-    /**
-     * @param $testLabel
-     *
-     * @return MergeRequest[]
-     */
-    public function getMergeRequestsByLabel($testLabel);
 
     /**
      * @param Feature $feature
@@ -88,12 +82,25 @@ interface GitAdapterInterface
 
 
     /**
-     * @param Feature[] $mergeRequests
-     * @param string    $releaseCandidateVersion
+     * @param Feature[] $features
      *
      * @return Release
      */
-    public function buildReleaseCandidate($mergeRequests, $releaseCandidateVersion);
+    public function buildReleaseCandidate($features);
+
+    /**
+     * @param Feature[] $features
+     *
+     * @return Release
+     */
+    public function buildReleaseStable($features);
+
+    /**
+     * @param Release $release
+     *
+     * @return Release
+     */
+    public function createReleaseTag(Release $release, $metadata = '');
 
     /**
      * @param Release $release
@@ -102,4 +109,12 @@ interface GitAdapterInterface
      * @return void
      */
     public function pushFeatureIntoReleaseCandidate(Release $release, Feature $feature);
+
+    /**
+     * @param $label
+     *
+     * @return Feature[]
+     */
+    public function getFeaturesByLabel($label);
+
 }

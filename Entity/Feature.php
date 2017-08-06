@@ -130,4 +130,9 @@ class Feature
     {
         return $this->mergeRequest;
     }
+
+    public function addLabel($label)
+    {
+        $this->labels[] = $label;
+    }
 }

@@ -80,11 +80,11 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
-     * @param Version $version
+     * @param Release $release
      *
      * @return Release
      */
-    public function startReleaseCandidate($version)
+    public function startReleaseCandidate(Release $release)
     {
         $username     = $this->getConfiguration()->getUsername();
         $repository   = $this->getConfiguration()->getRepository();
@@ -99,41 +99,23 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             ->gitData()
             ->references()
             ->create($username, $repository, array(
-                'ref' => "refs/heads/{$version}",
+                'ref' => "refs/heads/{$release->getBranch()}",
                 'sha' => $masterBranchInfo['object']['sha'],
             ));
 
-        $releaseCandidate = new Release($version->__toString());
+        $release->setStatus(Release::STATUS_STARTED);
 
-        return $releaseCandidate;
+        return $release;
     }
 
     /**
-     * @param Feature[] $mergeRequests
-     * @param Version   $releaseCandidateVersion
+     * @param Feature $feature
+     * @param         $label
      *
-     * @return Release
-     */
-    public function buildReleaseCandidate($mergeRequests, $releaseCandidateVersion)
-    {
-        $releaseCandidate = $this->startReleaseCandidate($releaseCandidateVersion);
-
-        foreach ($mergeRequests as $mergeRequest) {
-            $this->pushFeatureIntoReleaseCandidate($releaseCandidate, $mergeRequest);
-            $releaseCandidate->addMergeRequest($mergeRequest);
-        }
-
-        $this->createReleaseTag($releaseCandidateVersion, true);
-
-        return $releaseCandidate;
-    }
-
-    /**
-     * @param $pullRequestNumber
-     * @param $label
      *
+     * @return Feature
      */
-    protected function addLabelToMergeRequest($pullRequestNumber, $label)
+    protected function addLabelToFeature(Feature $feature, $label)
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
@@ -141,7 +123,10 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
         $client->issues()
                ->labels()
-               ->add($username, $repository, $pullRequestNumber, $label);
+               ->add($username, $repository, $feature->getMergeRequestNumber(), $label);
+        $feature->addLabel($label);
+
+        return $feature;
     }
 
     public function getLabelsByMergeRequest($mergeRequestNumber)
@@ -162,7 +147,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param $label
      *
-     * @return Feature[]
+     * @return MergeRequest[]
      */
     public function getMergeRequestsByLabel($label)
     {
@@ -186,11 +171,14 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return array_map(function ($item) use ($client, $username, $repository) {
             $mergeRequestInfo = $client->pullRequest()->show($username, $repository, $item['number']);
 
-            $mergeRequest = new Feature($mergeRequestInfo['number']);
+            $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
             $mergeRequest->setName($mergeRequestInfo['title'])
                          ->setIsMergeable($mergeRequestInfo['mergeable'])
                          ->setDescription($mergeRequestInfo['body'])
-                         ->setUrl($mergeRequestInfo['html_url']);
+                         ->setUrl($mergeRequestInfo['html_url'])
+                         ->setCommit($mergeRequestInfo['head']['sha'])
+                        ->setSourceBranch($mergeRequestInfo['head']['ref'])
+                        ->setTargetBranch($mergeRequestInfo['base']['ref']);
 
             return $mergeRequest;
         }, $issues);
@@ -302,7 +290,12 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getReleaseCandidateVersion()
     {
-        $version                 = Version::fromString($this->getHighestVersion());
+        $version = Version::fromString($this->getHighestVersion());
+
+        if ($version->isStable()) {
+            $version = $version->increase('minor');
+        }
+
         $releaseCandidateVersion = $version->increase('rc');
 
         return $releaseCandidateVersion;
@@ -350,7 +343,8 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             }
         }
 
-        $versions = Semver::sort(array_merge($versionsTags, $versionsBranches));
+        $versions = array_merge($versionsTags, $versionsBranches);
+        $versions = Semver::sort($versions);
         $version  = end($versions);
 
         if (empty($version)) {
@@ -370,57 +364,81 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
-
-        $client->repository()->merge($username, $repository, $release->getName(), $feature->getName());
+        $client->repository()->merge($username, $repository, $release->getVersion(), $feature->getName());
+        $release->addFeature($feature);
     }
 
-    public function mergeMergeRequest($pullRequestNumber, $type = 'squash')
+    /**
+     * @param Release $release
+     * @param Feature $feature
+     */
+    public function pushFeatureIntoRelease(Release $release, Feature $feature)
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
-        $pullRequest      = $client->pullRequest()->show($username, $repository, $pullRequestNumber);
-        $pullRequestTitle = "Merge Pull Request {$pullRequest['title']} #{$pullRequestNumber}";
-
-        $client->pullRequest()->merge($username, $repository, $pullRequestNumber,
-            $pullRequest['body'], $pullRequest['head']['sha'], $type, $pullRequestTitle);
+        $client->pullRequest()->merge(
+            $username,
+            $repository,
+            $feature->getMergeRequestNumber(),
+            "Add feature {$feature->getName()}",
+            $feature->getMergeRequest()->getCommit(),
+            'squash'
+        );
+        $release->addFeature($feature);
     }
 
-    public function createReleaseTag($release, $isReleaseCandidate)
+    /**
+     * @param Release $release
+     * @param string  $metadata
+     *
+     * @return Release
+     */
+    public function createReleaseTag(Release $release, $metadata = '')
     {
-        $client       = $this->getApiClient();
-        $repository   = $this->getConfiguration()->getRepository();
-        $username     = $this->getConfiguration()->getUsername();
+        $client            = $this->getApiClient();
+        $repository        = $this->getConfiguration()->getRepository();
+        $username          = $this->getConfiguration()->getUsername();
 
-        $releaseBranch = ($isReleaseCandidate) ? $release : $this->getConfiguration()->getMasterBranch();
-        $release .= ($isReleaseCandidate) ? '+' . date('Y-m-d_h-i-s') : '';
-
-        $releaseBranchInfo = $client->repository()->branches($username, $repository, $releaseBranch);
-
+        $release->setMetadata($metadata); // TODO move to release object
+        $releaseBranchInfo = $client
+            ->repository()
+            ->branches($username, $repository, $release->getBranch());
+        $releaseTag = (empty($metadata)) ? $release->getVersion() : $release->getVersion() . '+' . $metadata;
         $client->repository()
                ->releases()
                ->create($username, $repository,
                    array(
-                       'tag_name'         => $release,
-                       'name'             => $release,
-                       'prerelease'       => true,
+                       'tag_name'         => $releaseTag,
+                       'name'             => $releaseTag,
+                       'prerelease'       => (!$release->isStable()),
                        'target_commitish' => $releaseBranchInfo['commit']['sha'],
                    )
                );
+
+
+        return $release;
     }
 
-
-    public function getRCBranchesListByRelease($releaseVersion)
+    /**
+     * @param Release $release
+     *
+     * @return array
+     */
+    public function getRCBranchesListByRelease(Release $release)
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
         $branches = $client->repository()->branches($username, $repository);
+        $branches = array_map(function ($branch) {
+            return $branch['name'];
+        }, $branches);
 
-        return array_filter($branches, function ($branch) use ($releaseVersion) {
-            return (strpos($branch, $releaseVersion . '-RC') === 0);
+        return array_filter($branches, function ($branch) use ($release) {
+            return (strpos($branch, $release->getVersion() . '-RC') === 0);
         });
     }
 
@@ -469,53 +487,6 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
              ->remove($username, $repository, "heads/{$feature->getName()}");
 
         $feature->setStatus(Feature::STATUS_CLOSE);
-
-        return $feature;
-    }
-
-    /**
-     * @param $feature
-     *
-     * @return Feature
-     */
-    public function markFeatureAsNew(Feature $feature)
-    {
-        $mergeRequest = $this->getMergeRequestByFeature($feature);
-
-        if ($mergeRequest) {
-            $this->removeLabelsFromMergeRequest($mergeRequest->getNumber());
-            $feature->setStatus(Feature::STATUS_STARTED);
-        }
-    }
-
-    /**
-     * @param Feature $feature
-     *
-     * @return Feature
-     */
-    public function markFeatureReadyForTest(Feature $feature)
-    {
-        $this->addLabelToMergeRequest(
-            $feature->getMergeRequestNumber(),
-            $this->getConfiguration()->getLabelForTest()
-        );
-        $feature->setStatus(Feature::STATUS_TEST);
-
-        return $feature;
-    }
-
-    /**
-     * @param Feature $feature
-     *
-     * @return Feature
-     */
-    public function markFeatureReadyForRelease(Feature $feature)
-    {
-        $this->addLabelToMergeRequest(
-            $feature->getMergeRequestNumber(),
-            $this->getConfiguration()->getLabelForRelease()
-        );
-        $feature->setStatus(Feature::STATUS_RELEASE);
 
         return $feature;
     }
@@ -584,7 +555,10 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $this->apiClient;
     }
 
-    protected function removeLabelsFromMergeRequest($mergeRequestNumber)
+    /**
+     * @param Feature $feature
+     */
+    protected function removeLabelsFromFeature(Feature $feature)
     {
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
@@ -598,7 +572,24 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         foreach ($labels as $label) {
             $client->issues()
                    ->labels()
-                   ->remove($username, $repository, $mergeRequestNumber, $label);
+                   ->remove($username, $repository, $feature->getMergeRequestNumber(), $label);
         }
     }
+
+    /**
+     * @param Release $release
+     */
+    public function removeReleaseCandidates($release)
+    {
+        $repository = $this->getConfiguration()->getRepository();
+        $username   = $this->getConfiguration()->getUsername();
+        $client     = $this->getApiClient();
+
+        foreach ($this->getRCBranchesListByRelease($release) as $releaseCandidateBranch) {
+            $client->gitData()
+                   ->references()
+                   ->remove($username, $repository, "heads/{$releaseCandidateBranch}");
+        }
+    }
+
 }

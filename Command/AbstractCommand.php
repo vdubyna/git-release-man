@@ -81,7 +81,12 @@ abstract class AbstractCommand extends Command
     {
         $this->styleHelper = new SymfonyStyle($input, $output);
         $action            = $input->getArgument('action');
-        $methodName        = $this->allowedActions[$action];
+        if (!isset($this->allowedActions[$action])) {
+            $allowedActions = implode(', ', array_keys($this->allowedActions));
+            throw new ExitException("Action \"{$action}\" does not exist use one of the [{$allowedActions}]");
+        }
+
+        $methodName = $this->allowedActions[$action];
 
         if ($input->getOption('gitadapter')) {
             $this->getConfiguration()->setGitAdapter($input->getOption('gitadapter'));

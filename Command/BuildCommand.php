@@ -11,12 +11,12 @@ use Mirocode\GitReleaseMan\ExitException as ExitException;
 class BuildCommand extends Command
 {
     protected $allowedActions = array(
-        'init'                => 'init',
-        'test'                => 'test',
-        'release'             => 'release',
-        'features-list'       => 'featuresList',
-        'latest-release'      => 'latestRelease',
-        'latest-test-release' => 'latestTestRelease',
+        'init'                     => 'initAction',
+        'release-candidate'        => 'releaseCandidateAction',
+        'release-stable'           => 'releaseStableAction',
+        'features-list'            => 'featuresListAction',
+        'latest-release'           => 'latestReleaseAction',
+        'latest-release-candidate' => 'latestReleaseCandidateAction',
     );
 
     protected function configure()
@@ -28,7 +28,7 @@ class BuildCommand extends Command
              ->setHelp('Init git release man');
     }
 
-    public function init()
+    public function initAction()
     {
         $confirmationMassage = ($this->getConfiguration()->isConfigurationExists())
             ? "Configuration already exists in current repository, do you want to overwrite it?"
@@ -38,7 +38,7 @@ class BuildCommand extends Command
         $gitAdapter = ($this->getConfiguration()->getGitAdapter())
             ? $this->getConfiguration()->getGitAdapter()
             : $this->askAndChooseValueOrExit(
-                'What is your gitAdapter (github|bitbucket)?', array('github', 'bitbucket', 'gitlab'));
+                'What is your gitAdapter (github|bitbucket|gitlab)?', array('github', 'bitbucket', 'gitlab'));
 
         $username = ($this->getConfiguration()->getUsername())
             ? $this->getConfiguration()->getUsername()
@@ -55,83 +55,59 @@ class BuildCommand extends Command
         $this->getConfiguration()->initConfiguration($username, $token, $repositoryName, $gitAdapter);
     }
 
-    public function test()
+    public function releaseCandidateAction()
     {
-        $this->getStyleHelper()->title("Create Release Candidate branch to do testing");
-        $this->confirmOrExit('Do you want to create Release Candidate branch for testing?');
+        $this->confirmOrExit('Do you want to build Release Candidate for testing?');
+        $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()->getLabelForTest());
 
-        $testLabel = $this->getConfiguration()->getLabelForTest();
-
-        $mergeRequests = $this->getGitAdapter()
-                             ->getMergeRequestsByLabel($testLabel);
-
-        if (empty($mergeRequests)) {
-            $this->getStyleHelper()->error('There is no merge requests ready for test.');
+        if (empty($features)) {
+            $this->getStyleHelper()->error('There is no features ready for build.');
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
 
-        foreach ($mergeRequests as $mergeRequest) {
-            if (!$mergeRequest->getIsMergeable()) {
-                throw new ExitException("Merge Request #{$mergeRequest->getNumber()} {$mergeRequest->getName()} " .
+        foreach ($features as $feature) {
+            if (!$feature->getMergeRequest()->getIsMergeable()) {
+                throw new ExitException("Feature's '{$feature->getName()}' Merge Request " .
+                    "#{$feature->getMergeRequest()->getNumber()} {$feature->getMergeRequest()->getName()} " .
                     "can not be merged. Please, fix it before this action.");
             }
         }
 
-        $rcVersion = $this->getGitAdapter()->getReleaseCandidateVersion();
-        $releaseCandidate = $this->getGitAdapter()->buildReleaseCandidate($mergeRequests, $rcVersion);
+        $releaseCandidate = $this->getGitAdapter()->buildReleaseCandidate($features);
 
         $this->getStyleHelper()
-             ->success("New Release Candidate \"{$releaseCandidate->getName()}\" is ready for testing");
+             ->success("New Release Candidate \"{$releaseCandidate->getVersion()}\" is ready for testing");
 
     }
 
-    public function release()
+    public function releaseStableAction()
     {
-        $this->getStyleHelper()->title("Merge ready for release branches and create Release TAG");
-        $this->confirmOrExit('Do you want to continue and make release?');
+        $this->confirmOrExit('Do you want to build Release for production?');
+        $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()->getLabelForRelease());
 
-        $releaseLabel = $this->getConfiguration()->getLabelForRelease();
-        $pullRequests = $this->getGitAdapter()->getPullRequestsByLabel($releaseLabel);
-
-        if (empty($pullRequests)) {
-            $this->getStyleHelper()->error('There is no Pull requests ready for release');
+        if (empty($features)) {
+            $this->getStyleHelper()->error('There is no features ready for build.');
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
 
-        foreach ($pullRequests as $pullRequest) {
-            if (empty($pullRequest['mergeable'])) {
-                $this->getStyleHelper()->error("Pull Request #{$pullRequest['number']} can not be merged. " .
-                    "Verify and solve conflicts: {$pullRequest['html_url']}");
-                throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
+        foreach ($features as $feature) {
+            if (!$feature->getMergeRequest()->getIsMergeable()) {
+                throw new ExitException("Feature's '{$feature->getName()}' Merge Request " .
+                    "#{$feature->getMergeRequest()->getNumber()} {$feature->getMergeRequest()->getName()} " .
+                    "can not be merged. Please, fix it before this action.");
             }
         }
 
-        $this->getStyleHelper()->success("There is no conflicts, Pull Requests ready for release");
+        $release = $this->getGitAdapter()->buildReleaseStable($features);
 
-        foreach ($pullRequests as $pullRequest) {
-            $this->getGitAdapter()->mergeMergeRequest($pullRequest['number']);
-            $this->getStyleHelper()->success("Merge Pull Request {$pullRequest['title']} #{$pullRequest['number']}");
-        }
-
-        foreach ($pullRequests as $pullRequest) {
-            $this->getGitAdapter()->removeFeature($pullRequest['head']['ref']);
-            $this->getStyleHelper()->success("Branch {$pullRequest['head']['ref']} removed.");
-        }
-
-        $releaseVersion = $this->getGitAdapter()->getReleaseVersion();
-        $this->getGitAdapter()->createReleaseTag($releaseVersion);
-
-        foreach ($this->getGitAdapter()->getRCBranchesListByRelease($releaseVersion) as $rcBranch) {
-            $this->getGitAdapter()->removeFeature($rcBranch);
-        }
-
-        $this->getStyleHelper()->success("Release \"{$releaseVersion}\" generated.");
+        $this->getStyleHelper()
+             ->success("New Release \"{$release->getVersion()}\" is ready for production");
     }
 
     /**
      * List available features
      */
-    public function featuresList()
+    public function featuresListAction()
     {
         $features = $this->getGitAdapter()->getFeaturesList();
         $headers  = array('Feature Name', 'Merge Request');
@@ -156,13 +132,13 @@ class BuildCommand extends Command
         $this->getStyleHelper()->table($headers, $rows);
     }
 
-    public function latestRelease()
+    public function latestReleaseAction()
     {
         $latestReleaseTag = $this->getGitAdapter()->getLatestReleaseTag();
         $this->getStyleHelper()->write($latestReleaseTag);
     }
 
-    public function latestTestRelease()
+    public function latestReleaseCandidateAcition()
     {
         $latestTestReleaseTag = $this->getGitAdapter()->getLatestTestReleaseTag();
         $this->getStyleHelper()->write($latestTestReleaseTag);

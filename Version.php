@@ -173,4 +173,12 @@ final class Version
     {
         return $this->getVersion();
     }
+
+    /**
+     * @return bool
+     */
+    public function isStable()
+    {
+        return (self::$stabilises[$this->stability] === 3);
+    }
 }
