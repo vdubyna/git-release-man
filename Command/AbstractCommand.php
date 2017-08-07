@@ -56,11 +56,11 @@ abstract class AbstractCommand extends Command
     }
 
     /**
-     * @param GitAdapterInterface $gitAdapter
+     * @param GitAdapterAbstract $gitAdapter
      *
      * @return AbstractCommand
      */
-    public function setGitAdapter($gitAdapter)
+    public function setGitAdapter(GitAdapterAbstract $gitAdapter)
     {
         $this->gitAdapter = $gitAdapter;
 

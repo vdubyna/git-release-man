@@ -134,19 +134,18 @@ class BuildCommand extends Command
         $headers  = array('Feature Name', 'Merge Request');
 
         $rows = array_map(function (Feature $feature) {
-            $mergeRequest = $this->getGitAdapter()->getMergeRequestByFeature($feature);
-
-            if (!empty($mergeRequest)) {
+            if (empty($feature->getMergeRequestNumber())) {
+                $mergeRequestMessage = "There is no open MergeRequest";
+            } else {
+                $mergeRequest = $feature->getMergeRequest();
                 $mergeRequestMessage = "Merge Request: #{$mergeRequest->getNumber()} - {$mergeRequest->getName()}\n" .
                     "{$mergeRequest->getUrl()}";
-            } else {
-                $mergeRequestMessage = "There is no open MergeRequest";
             }
 
-            return array(
+            return [
                 $feature->getName(),
                 $mergeRequestMessage,
-            );
+            ];
         }, $features);
 
         $this->getStyleHelper()->section("Features list");
