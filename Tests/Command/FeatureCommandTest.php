@@ -13,8 +13,7 @@ use Symfony\Component\Console\Application;
 
 class FeatureCommandTest extends TestCase
 {
-
-    const DEFAULT_FEATURE_NAME = 'feature-my-cool';
+    const DEFAULT_FEATURE_NAME = 'feature-123-my-cool-gear';
 
     public function testExecuteFeatureStart()
     {
