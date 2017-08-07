@@ -10,14 +10,14 @@ use Mirocode\GitReleaseMan\ExitException as ExitException;
 
 class BuildCommand extends Command
 {
-    protected $allowedActions = array(
+    protected $allowedActions = [
         'init'                     => 'initAction',
         'release-candidate'        => 'releaseCandidateAction',
         'release-stable'           => 'releaseStableAction',
-        'features-list'            => 'featuresListAction',
-        'latest-release'           => 'latestReleaseAction',
+        'latest-release-stable'    => 'latestReleaseStableAction',
         'latest-release-candidate' => 'latestReleaseCandidateAction',
-    );
+        'features-list'            => 'featuresListAction',
+    ];
 
     protected function configure()
     {
@@ -152,7 +152,7 @@ class BuildCommand extends Command
         $this->getStyleHelper()->table($headers, $rows);
     }
 
-    public function latestReleaseAction()
+    public function latestReleaseStableAction()
     {
         $latestReleaseTag = $this->getGitAdapter()->getLatestReleaseTag();
         $this->getStyleHelper()->write($latestReleaseTag);
