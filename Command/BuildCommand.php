@@ -154,13 +154,13 @@ class BuildCommand extends Command
 
     public function latestReleaseStableAction()
     {
-        $latestReleaseTag = $this->getGitAdapter()->getLatestReleaseTag();
+        $latestReleaseTag = $this->getGitAdapter()->getLatestReleaseStableTag();
         $this->getStyleHelper()->write($latestReleaseTag);
     }
 
     public function latestReleaseCandidateAcition()
     {
-        $latestTestReleaseTag = $this->getGitAdapter()->getLatestTestReleaseTag();
+        $latestTestReleaseTag = $this->getGitAdapter()->getLatestReleaseCandidateTag();
         $this->getStyleHelper()->write($latestTestReleaseTag);
     }
 }

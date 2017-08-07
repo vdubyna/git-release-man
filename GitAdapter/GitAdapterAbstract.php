@@ -91,7 +91,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
         $mergeRequests = $this->getMergeRequestsByLabel($label);
 
         return array_map(function (MergeRequest $mergeRequest) {
-            $feature = new Feature($mergeRequest->getSourceBranch());
+            $feature = $this->buildFeature($mergeRequest->getSourceBranch());
             $feature->setMergeRequest($mergeRequest)
                     ->setMergeRequestNumber($mergeRequest->getNumber());
 

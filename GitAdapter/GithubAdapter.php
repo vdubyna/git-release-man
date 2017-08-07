@@ -409,7 +409,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         });
     }
 
-    public function getLatestReleaseTag()
+    public function getLatestReleaseStableTag()
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
@@ -420,7 +420,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $latestRelease['tag_name'];
     }
 
-    public function getLatestTestReleaseTag()
+    public function getLatestReleaseCandidateTag()
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();

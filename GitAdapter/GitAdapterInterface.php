@@ -36,9 +36,9 @@ interface GitAdapterInterface
      */
     public function getFeaturesList();
 
-    public function getLatestReleaseTag();
+    public function getLatestReleaseStableTag();
 
-    public function getLatestTestReleaseTag();
+    public function getLatestReleaseCandidateTag();
 
 
     /**
