@@ -79,7 +79,7 @@ class GitAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @return string
      */
-    public function getReleaseVersion()
+    public function getReleaseStableVersion()
     {
         // TODO: Implement getReleaseVersion() method.
     }

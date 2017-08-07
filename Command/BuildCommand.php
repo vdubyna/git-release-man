@@ -66,14 +66,25 @@ class BuildCommand extends Command
         }
 
         foreach ($features as $feature) {
-            if (!$feature->getMergeRequest()->getIsMergeable()) {
+            if (!$feature->isFeatureReadyForRelease()) {
                 throw new ExitException("Feature's '{$feature->getName()}' Merge Request " .
                     "#{$feature->getMergeRequest()->getNumber()} {$feature->getMergeRequest()->getName()} " .
                     "can not be merged. Please, fix it before this action.");
             }
         }
 
-        $releaseCandidate = $this->getGitAdapter()->buildReleaseCandidate($features);
+        $releaseCandidateVersion = $this->getGitAdapter()->getReleaseCandidateVersion();
+        $releaseCandidate = new Release($releaseCandidateVersion, $releaseCandidateVersion->__toString(), false);
+
+        $releaseCandidate = $this->getGitAdapter()->startReleaseCandidate($releaseCandidate);
+
+        foreach ($features as $feature) {
+            $this->getGitAdapter()->pushFeatureIntoReleaseCandidate($releaseCandidate, $feature);
+            $this->getStyleHelper()->success("Feature {$feature->getMergeRequestNumber()} " .
+                "- {$feature->getName()} pushed into release {$releaseCandidate->getVersion()}");
+        }
+
+        $this->getGitAdapter()->createReleaseTag($releaseCandidate, date('Y-m-d_h-i-s'));
 
         $this->getStyleHelper()
              ->success("New Release Candidate \"{$releaseCandidate->getVersion()}\" is ready for testing");
@@ -91,17 +102,27 @@ class BuildCommand extends Command
         }
 
         foreach ($features as $feature) {
-            if (!$feature->getMergeRequest()->getIsMergeable()) {
+            if (!$feature->isFeatureReadyForRelease()) {
                 throw new ExitException("Feature's '{$feature->getName()}' Merge Request " .
                     "#{$feature->getMergeRequest()->getNumber()} {$feature->getMergeRequest()->getName()} " .
                     "can not be merged. Please, fix it before this action.");
             }
         }
 
-        $release = $this->getGitAdapter()->buildReleaseStable($features);
+        $releaseStableVersion = $this->getGitAdapter()->getReleaseStableVersion();
+        $releaseStable = new Release($releaseStableVersion, $this->getConfiguration()->getMasterBranch(), true);
+
+        foreach ($features as $feature) {
+            $this->getGitAdapter()->pushFeatureIntoRelease($releaseStable, $feature);
+            $this->getStyleHelper()->success("Feature {$feature->getMergeRequestNumber()} " .
+                "- {$feature->getName()} pushed into release {$releaseStable->getVersion()}");
+        }
+
+        $this->getGitAdapter()->createReleaseTag($releaseStable);
+        $this->getGitAdapter()->cleanupRelease($releaseStable);
 
         $this->getStyleHelper()
-             ->success("New Release \"{$release->getVersion()}\" is ready for production");
+             ->success("New Release \"{$releaseStable->getVersion()}\" is ready for production");
     }
 
     /**

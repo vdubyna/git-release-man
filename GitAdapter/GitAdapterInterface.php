@@ -78,22 +78,8 @@ interface GitAdapterInterface
     /**
      * @return Version
      */
-    public function getReleaseVersion();
+    public function getReleaseStableVersion();
 
-
-    /**
-     * @param Feature[] $features
-     *
-     * @return Release
-     */
-    public function buildReleaseCandidate($features);
-
-    /**
-     * @param Feature[] $features
-     *
-     * @return Release
-     */
-    public function buildReleaseStable($features);
 
     /**
      * @param Release $release

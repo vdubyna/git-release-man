@@ -58,10 +58,16 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
     abstract public function removeReleaseCandidates($release);
 
     abstract public function getMergeRequestsByLabel($label);
-    abstract protected function addLabelToFeature(Feature $feature, $label);
-    abstract protected function removeLabelsFromFeature(Feature $feature);
-    abstract protected function startReleaseCandidate(Release $release);
-    abstract protected function pushFeatureIntoRelease(Release $release, Feature $feature);
+    abstract public function addLabelToFeature(Feature $feature, $label);
+    abstract public function removeLabelsFromFeature(Feature $feature);
+
+    /**
+     * @param Release $release
+     *
+     * @return Release
+     */
+    abstract public function startReleaseCandidate(Release $release);
+    abstract public function pushFeatureIntoRelease(Release $release, Feature $feature);
 
 
 
@@ -138,49 +144,5 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
         $feature->setStatus(Feature::STATUS_STARTED);
 
         return $feature;
-    }
-
-    /**
-     * @param Feature[] $features
-     *
-     * @return Release
-     */
-    public function buildReleaseCandidate($features)
-    {
-        $releaseCandidateVersion = $this->getReleaseCandidateVersion();
-        $releaseCandidate = new Release(
-            $releaseCandidateVersion->__toString(),
-            $releaseCandidateVersion->__toString(),
-            false
-        );
-        $releaseCandidate = $this->startReleaseCandidate($releaseCandidate);
-
-        foreach ($features as $feature) {
-            $this->pushFeatureIntoReleaseCandidate($releaseCandidate, $feature);
-        }
-
-        $this->createReleaseTag($releaseCandidate, date('Y-m-d_h-i-s'));
-
-        return $releaseCandidate;
-    }
-
-    /**
-     * @param Feature[] $features
-     *
-     * @return Release
-     */
-    public function buildReleaseStable($features)
-    {
-        $releaseVersion = $this->getReleaseVersion();
-        $release = new Release($releaseVersion->__toString(), $this->getConfiguration()->getMasterBranch(), true);
-
-        foreach ($features as $feature) {
-            $this->pushFeatureIntoRelease($release, $feature);
-        }
-
-        $this->createReleaseTag($release);
-        $this->cleanupRelease($release);
-
-        return $release;
     }
 }

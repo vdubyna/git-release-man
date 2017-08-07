@@ -2,6 +2,8 @@
 
 namespace Mirocode\GitReleaseMan\Entity;
 
+use Mirocode\GitReleaseMan\Version;
+
 class Release
 {
     const STATUS_CLOSED          = 'closed';
@@ -25,10 +27,10 @@ class Release
     protected $status;
     protected $isStable;
 
-    public function __construct($version, $branch, $isStable)
+    public function __construct(Version $version, $branch, $isStable)
     {
-        $this->version = $version;
-        $this->branch = $branch;
+        $this->version = (string) $version;
+        $this->branch = (string) $branch;
         //TODO Load the status from repository.
         $this->setStatus(self::STATUS_NEW);
         $this->isStable = $isStable;

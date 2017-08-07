@@ -135,4 +135,12 @@ class Feature
     {
         $this->labels[] = $label;
     }
+
+    /**
+     * @return bool
+     */
+    public function isFeatureReadyForRelease()
+    {
+        return $this->getMergeRequest()->getIsMergeable();
+    }
 }

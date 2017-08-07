@@ -304,7 +304,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @return Version
      */
-    public function getReleaseVersion()
+    public function getReleaseStableVersion()
     {
         $version        = Version::fromString($this->getHighestVersion());
         $releaseVersion = $version->increase('stable');
@@ -558,7 +558,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param Feature $feature
      */
-    protected function removeLabelsFromFeature(Feature $feature)
+    public function removeLabelsFromFeature(Feature $feature)
     {
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
