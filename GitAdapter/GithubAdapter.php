@@ -115,7 +115,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
      *
      * @return Feature
      */
-    protected function addLabelToFeature(Feature $feature, $label)
+    public function addLabelToFeature(Feature $feature, $label)
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
@@ -259,30 +259,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             array('body' => $pullRequestDescription)
         );
 
-        $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
-
-        return $mergeRequest;
-    }
-
-    public function compareFeatureWithMaster(Feature $feature)
-    {
-        $client       = $this->getApiClient();
-        $repository   = $this->getConfiguration()->getRepository();
-        $username     = $this->getConfiguration()->getUsername();
-        $masterBranch = $this->getConfiguration()->getMasterBranch();
-
-        $compareFeatureInfo = $client
-            ->repository()
-            ->commits()
-            ->compare($username, $repository, $masterBranch, $feature);
-
-        return array(
-            'status'    => $compareFeatureInfo['status'],
-            'ahead_by'  => $compareFeatureInfo['ahead_by'],
-            'behind_by' => $compareFeatureInfo['behind_by'],
-            'commits'   => count($compareFeatureInfo['commits']),
-            'files'     => count($compareFeatureInfo['files']),
-        );
+        return new MergeRequest($mergeRequestInfo['number']);
     }
 
     /**
@@ -290,15 +267,13 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getReleaseCandidateVersion()
     {
-        $version = Version::fromString($this->getHighestVersion());
+        $version = $this->getLatestVersion();
 
         if ($version->isStable()) {
             $version = $version->increase('minor');
         }
 
-        $releaseCandidateVersion = $version->increase('rc');
-
-        return $releaseCandidateVersion;
+        return $version->increase('rc');
     }
 
     /**
@@ -306,16 +281,13 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getReleaseStableVersion()
     {
-        $version        = Version::fromString($this->getHighestVersion());
-        $releaseVersion = $version->increase('stable');
-
-        return $releaseVersion;
+        return $this->getLatestVersion()->increase('stable');
     }
 
     /**
-     * @return mixed
+     * @return Version
      */
-    protected function getHighestVersion()
+    protected function getLatestVersion()
     {
         $username   = $this->getConfiguration()->getUsername();
         $repository = $this->getConfiguration()->getRepository();
@@ -344,14 +316,9 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         }
 
         $versions = array_merge($versionsTags, $versionsBranches);
-        $versions = Semver::sort($versions);
-        $version  = end($versions);
+        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
 
-        if (empty($version)) {
-            $version = Configuration::DEFAULT_VERSION;
-        }
-
-        return $version;
+        return Version::fromString($version);
     }
 
     /**

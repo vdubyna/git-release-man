@@ -143,4 +143,13 @@ class VersionTest extends TestCase
         $versionObject = Version::fromString('1.3.1');
         $versionObject->increase('invalid_stability');
     }
+
+    public function testVersionGetIsStable()
+    {
+        $versionObject = Version::fromString('v1.2.3');
+        $this->assertEquals(true, $versionObject->isStable());
+
+        $versionObject = Version::fromString('v1.2.3-RC1');
+        $this->assertEquals(false, $versionObject->isStable());
+    }
 }

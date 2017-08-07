@@ -5,6 +5,7 @@ namespace Mirocode\GitReleaseMan\Tests\Command;
 use Mirocode\GitReleaseMan\Command\FeatureCommand;
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
+use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\Tests\GitAdapter;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -79,11 +80,8 @@ class FeatureCommandTest extends TestCase
         $command->setApplication(new Application());
         $configuration = new Configuration();
 
-        /** @var GitAdapter|\PHPUnit_Framework_MockObject_MockObject $gitAdapter */
-        $gitAdapter = $this->getMockBuilder(GitAdapter::class)
-                         ->setConstructorArgs(array($configuration))
-                         ->setMethods(array('loadFeature'))
-                         ->getMock();
+        /** @var GitAdapterAbstract|\PHPUnit_Framework_MockObject_MockObject $gitAdapter */
+        $gitAdapter = $this->getMockForAbstractClass(GitAdapterAbstract::class, array($configuration));
 
         $feature = new Feature(self::DEFAULT_FEATURE_NAME);
         $feature->setStatus(Feature::STATUS_NEW);
