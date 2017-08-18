@@ -516,7 +516,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     /**
      * @param Release $release
      */
-    public function removeReleaseCandidates($release)
+    public function removeReleaseCandidates(Release $release)
     {
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();

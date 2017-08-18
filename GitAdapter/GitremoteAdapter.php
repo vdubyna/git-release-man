@@ -1,19 +1,11 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: vdubyna
- * Date: 8/16/17
- * Time: 02:31
- */
 
 namespace Mirocode\GitReleaseMan\GitAdapter;
-
 
 use Composer\Semver\Semver;
 use InvalidArgumentException;
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
-use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\Entity\Release;
 use Mirocode\GitReleaseMan\ExitException;
 use Mirocode\GitReleaseMan\Version;
@@ -74,11 +66,43 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $feature;
     }
 
-    public function removeReleaseCandidates($release)
+    /**
+     * @param Release $release
+     *
+     * @throws ExitException
+     */
+    public function removeReleaseCandidates(Release $release)
     {
-        // TODO: Implement removeReleaseCandidates() method.
+        try {
+            $process = new Process("git ls-remote --heads --refs origin | grep {$release->getVersion()}-RC");
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+            $items = explode("\n", $process->getOutput());
+            $items = array_map(function ($tag) {
+                $tagParts = explode('/', $tag);
+                return end($tagParts);
+            }, $items);
+        } catch (ProcessFailedException $e) {
+            $items = [];
+        }
+
+        foreach ($items as $item) {
+            try {
+                $process = new Process("git push -d origin {$item}");
+                $process->setWorkingDirectory(getcwd());
+                $process->mustRun();
+            } catch (ProcessFailedException $e) {
+                throw new ExitException($e);
+            }
+        }
     }
 
+    /**
+     * @param Feature $feature
+     * @param         $label
+     *
+     * @throws ExitException
+     */
     public function addLabelToFeature(Feature $feature, $label)
     {
         try {
@@ -194,7 +218,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
             return array_merge($versions, $items);
         }, []);
 
-        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+        $version = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
 
         return Version::fromString($version);
     }
@@ -282,12 +306,90 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
     public function getLatestReleaseStableTag()
     {
-        // TODO: Implement getLatestReleaseStableTag() method.
+        $filterRefs = function (array $list) {
+            $items = array_map(function ($item) {
+                $parts = explode('/', $item);
+
+                return end($parts);
+            }, $list);
+
+            return array_filter($items, function ($name) {
+                try {
+                    Version::fromString($name);
+                    return true;
+                } catch (InvalidArgumentException $e) {
+                    return false;
+                }
+            });
+        };
+
+        try {
+            $process = new Process("git ls-remote --tags --refs origin");
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+            $tags = $filterRefs(explode("\n", $process->getOutput()));
+
+            if (empty($tags)) {
+                throw new ExitException("There is no stable version.");
+            }
+
+            $versions = array_filter($tags, function ($tag) {
+                try {
+                    $version = Version::fromString($tag);
+                    return ($version->isStable()) ? true : false;
+                } catch (InvalidArgumentException $e) {
+                    return false;
+                }
+            });
+
+            return (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+        } catch (ProcessFailedException $e) {
+            throw new ExitException($e);
+        }
     }
 
     public function getLatestReleaseCandidateTag()
     {
-        // TODO: Implement getLatestReleaseCandidateTag() method.
+        $filterRefs = function (array $list) {
+            $items = array_map(function ($item) {
+                $parts = explode('/', $item);
+
+                return end($parts);
+            }, $list);
+
+            return array_filter($items, function ($name) {
+                try {
+                    Version::fromString($name);
+                    return true;
+                } catch (InvalidArgumentException $e) {
+                    return false;
+                }
+            });
+        };
+
+        try {
+            $process = new Process("git ls-remote --tags --refs origin");
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+            $tags = $filterRefs(explode("\n", $process->getOutput()));
+
+            if (empty($tags)) {
+                throw new ExitException("There is no stable version.");
+            }
+
+            $versions = array_filter($tags, function ($tag) {
+                try {
+                    $version = Version::fromString($tag);
+                    return ($version->getStability() === Version::STABILITY_RC) ? true : false;
+                } catch (InvalidArgumentException $e) {
+                    return false;
+                }
+            });
+
+            return (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+        } catch (ProcessFailedException $e) {
+            throw new ExitException($e);
+        }
     }
 
     /**

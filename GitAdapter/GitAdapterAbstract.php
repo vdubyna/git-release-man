@@ -56,8 +56,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
         return $this->configuration;
     }
 
-    abstract public function removeReleaseCandidates($release);
-
+    abstract public function removeReleaseCandidates(Release $release);
     abstract public function addLabelToFeature(Feature $feature, $label);
     abstract public function removeLabelsFromFeature(Feature $feature);
     abstract public function getFeatureLabels(Feature $feature);

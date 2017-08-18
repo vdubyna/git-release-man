@@ -19,6 +19,11 @@ final class Version
         'stable' => 3,
     );
 
+    const STABILITY_ALPHA  = 'ALPHA';
+    const STABILITY_BETA   = 'BETA';
+    const STABILITY_RC     = 'RC';
+    const STABILITY_STABLE = 'STABLE';
+
     private $major;
     private $minor;
     private $patch;
