@@ -2,6 +2,7 @@
 
 namespace Mirocode\GitReleaseMan\Command;
 
+use Github\Api\Issue\Labels;
 use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\Release;
@@ -128,7 +129,7 @@ class BuildCommand extends Command
     public function featuresListAction()
     {
         $features = $this->getGitAdapter()->getFeaturesList();
-        $headers  = array('Feature Name', 'Merge Request');
+        $headers  = array('Feature Name', 'Labels', 'Merge Request');
 
         $rows = array_map(function (Feature $feature) {
             if (empty($feature->getMergeRequestNumber())) {
@@ -141,6 +142,7 @@ class BuildCommand extends Command
 
             return [
                 $feature->getName(),
+                implode(', ', $feature->getLabels()),
                 $mergeRequestMessage,
             ];
         }, $features);

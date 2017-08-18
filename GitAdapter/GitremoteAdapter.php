@@ -54,10 +54,12 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
             }
             foreach ($tagsList as $tagName) {
                 if (0 === strpos($tagName, $this->getConfiguration()->getLabelForTest())) {
+                    $feature->addLabel($this->getConfiguration()->getLabelForTest());
                     $feature->setStatus(Feature::STATUS_TEST);
                 }
 
                 if (0 === strpos($tagName, $this->getConfiguration()->getLabelForRelease())) {
+                    $feature->addLabel($this->getConfiguration()->getLabelForRelease());
                     $feature->setStatus(Feature::STATUS_RELEASE);
                 }
             }
@@ -85,6 +87,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
         } catch (ProcessFailedException $e) {
             $items = [];
         }
+        $items = array_filter($items, function ($item) { return (empty($item)) ? false : true; });
 
         foreach ($items as $item) {
             try {
@@ -217,8 +220,8 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
             return array_merge($versions, $items);
         }, []);
-
-        $version = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+        $versions = Semver::sort($versions);
+        $version = (empty($versions)) ? Configuration::DEFAULT_VERSION : end($versions);
 
         return Version::fromString($version);
     }
