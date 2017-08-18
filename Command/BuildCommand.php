@@ -13,6 +13,7 @@ class BuildCommand extends Command
     protected $allowedActions = [
         'init'                     => 'initAction',
         'release-candidate'        => 'releaseCandidateAction',
+        'test'                     => 'testAction',
         'release-stable'           => 'releaseStableAction',
         'latest-release-stable'    => 'latestReleaseStableAction',
         'latest-release-candidate' => 'latestReleaseCandidateAction',
@@ -65,18 +66,16 @@ class BuildCommand extends Command
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
 
-        foreach ($features as $feature) {
-            if (!$feature->isFeatureReadyForRelease()) {
-                throw new ExitException("Feature's '{$feature->getName()}' Merge Request " .
-                    "#{$feature->getMergeRequest()->getNumber()} {$feature->getMergeRequest()->getName()} " .
-                    "can not be merged. Please, fix it before this action.");
-            }
-        }
-
         $releaseCandidateVersion = $this->getGitAdapter()->getReleaseCandidateVersion();
         $releaseCandidate = new Release($releaseCandidateVersion, $releaseCandidateVersion->__toString(), false);
-
         $releaseCandidate = $this->getGitAdapter()->startReleaseCandidate($releaseCandidate);
+
+        foreach ($features as $feature) {
+            if (!$this->getGitAdapter()->isFeatureReadyForRelease($feature, $releaseCandidate)) {
+                throw new ExitException(
+                    "Feature '{$feature->getName()}' can not be merged. Please, fix it before this action.");
+            }
+        }
 
         foreach ($features as $feature) {
             $this->getGitAdapter()->pushFeatureIntoReleaseCandidate($releaseCandidate, $feature);
@@ -100,17 +99,16 @@ class BuildCommand extends Command
             $this->getStyleHelper()->error('There is no features ready for build.');
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
+        $releaseStableVersion = $this->getGitAdapter()->getReleaseStableVersion();
+        $releaseStable = new Release($releaseStableVersion, $this->getConfiguration()->getMasterBranch(), true);
 
         foreach ($features as $feature) {
-            if (!$feature->isFeatureReadyForRelease()) {
+            if (!$this->getGitAdapter()->isFeatureReadyForRelease($feature, $releaseStable)) {
                 throw new ExitException("Feature's '{$feature->getName()}' Merge Request " .
                     "#{$feature->getMergeRequest()->getNumber()} {$feature->getMergeRequest()->getName()} " .
                     "can not be merged. Please, fix it before this action.");
             }
         }
-
-        $releaseStableVersion = $this->getGitAdapter()->getReleaseStableVersion();
-        $releaseStable = new Release($releaseStableVersion, $this->getConfiguration()->getMasterBranch(), true);
 
         foreach ($features as $feature) {
             $this->getGitAdapter()->pushFeatureIntoRelease($releaseStable, $feature);

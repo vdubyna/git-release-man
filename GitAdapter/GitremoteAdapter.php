@@ -9,6 +9,9 @@
 namespace Mirocode\GitReleaseMan\GitAdapter;
 
 
+use Composer\Semver\Semver;
+use InvalidArgumentException;
+use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\Entity\Release;
@@ -86,17 +89,57 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
         } catch (ProcessFailedException $e) {
             throw new ExitException($e);
         }
-
     }
 
+    /**
+     * @param Feature $feature
+     *
+     * @throws ExitException
+     */
     public function removeLabelsFromFeature(Feature $feature)
     {
-        // TODO: Implement removeLabelsFromFeature() method.
+        $labels = [$this->getConfiguration()->getLabelForTest(), $this->getConfiguration()->getLabelForRelease()];
+        foreach ($labels as $label) {
+            try {
+                $testLabel = $label . "--{$feature->getName()}";
+                $process = new Process("git push -d origin {$testLabel}");
+                $process->setWorkingDirectory(getcwd());
+                $process->mustRun();
+            } catch (ProcessFailedException $e) {
+                throw new ExitException($e);
+            }
+        }
     }
 
+    /**
+     * @param Feature $feature
+     *
+     * @return array
+     */
     public function getFeatureLabels(Feature $feature)
     {
-        // TODO: Implement getFeatureLabels() method.
+        try {
+            $process = new Process("git ls-remote --tags --refs origin | grep {$feature->getName()}");
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+            $tagsList = explode("\n", $process->getOutput());
+            $tagsList = array_map(function ($tag) {
+                $tagParts = explode('/', $tag);
+                return end($tagParts);
+            }, $tagsList);
+            $tagsList = array_filter($tagsList, function ($tagName) {
+                if ((0 === strpos($tagName, $this->getConfiguration()->getLabelForTest()))
+                    || (0 === strpos($tagName, $this->getConfiguration()->getLabelForRelease()))
+                ) {
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+        } catch (ProcessFailedException $e) {
+            $tagsList = [];
+        }
+        return $tagsList;
     }
 
     /**
@@ -121,28 +164,85 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     protected function getLatestVersion()
     {
-        // TODO: Implement getLatestVersion() method.
+        $filterRefs = function (array $list) {
+            $items = array_map(function ($item) {
+                $parts = explode('/', $item);
+
+                return end($parts);
+            }, $list);
+
+            return array_filter($items, function ($name) {
+                try {
+                    Version::fromString($name);
+                    return true;
+                } catch (InvalidArgumentException $e) {
+                    return false;
+                }
+            });
+        };
+
+        $versions = array_reduce(['tags', 'heads'], function ($versions, $versionType) use ($filterRefs) {
+            try {
+                $process = new Process("git ls-remote --{$versionType} --refs origin");
+                $process->setWorkingDirectory(getcwd());
+                $process->mustRun();
+                $items = $filterRefs(explode("\n", $process->getOutput()));
+            } catch (ProcessFailedException $e) {
+                $items = [];
+            }
+
+            return array_merge($versions, $items);
+        }, []);
+
+        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+
+        return Version::fromString($version);
     }
 
     /**
      * @param Release $release
      *
      * @return Release
+     * @throws ExitException
      */
     public function startReleaseCandidate(Release $release)
     {
-        // TODO: Implement startReleaseCandidate() method.
+        try {
+            $process = new Process(
+                "git fetch origin && git checkout -B master " .
+                "&& git checkout -B {$release->getBranch()} && git push origin {$release->getBranch()}"
+            );
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+        } catch (ProcessFailedException $e) {
+            throw new ExitException($e);
+        }
+
+        $release->setStatus(Release::STATUS_STARTED);
+
+        return $release;
     }
 
     public function pushFeatureIntoRelease(Release $release, Feature $feature)
     {
-        // TODO: Implement pushFeatureIntoRelease() method.
+        try {
+            $process = new Process(
+                "git pull origin {$feature->getName()} && git push origin {$release->getBranch()}"
+            );
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+        } catch (ProcessFailedException $e) {
+            throw new ExitException($e);
+        }
+
+        $release->addFeature($feature);
     }
 
     /**
      * @param Feature $feature
      *
      * @return Feature
+     * @throws ExitException
      */
     public function closeFeature(Feature $feature)
     {
@@ -155,26 +255,6 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
         }
         $feature->setStatus(Feature::STATUS_CLOSE);
         return $feature;
-    }
-
-    /**
-     * @param Feature $feature
-     *
-     * @return MergeRequest
-     */
-    public function getMergeRequestByFeature(Feature $feature)
-    {
-        // TODO: Implement getMergeRequestByFeature() method.
-    }
-
-    /**
-     * @param Feature $feature
-     *
-     * @return MergeRequest
-     */
-    public function openMergeRequestByFeature(Feature $feature)
-    {
-        // TODO: Implement openMergeRequestByFeature() method.
     }
 
     /**
@@ -214,6 +294,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      * @param Feature $feature
      *
      * @return Feature
+     * @throws ExitException
      */
     public function startFeature(Feature $feature)
     {
@@ -264,7 +345,17 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function createReleaseTag(Release $release, $metadata = '')
     {
-        // TODO: Implement createReleaseTag() method.
+        $release->setMetadata($metadata); // TODO move to release object
+        $releaseTag = (empty($metadata)) ? $release->getVersion() : $release->getVersion() . '+' . $metadata;
+        try {
+            $process = new Process("git tag {$releaseTag} && git push origin {$releaseTag}");
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+        } catch (ProcessFailedException $e) {
+            throw new ExitException($e);
+        }
+
+        return $release;
     }
 
     /**
@@ -272,9 +363,58 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      * @param Feature $feature
      *
      * @return void
+     * @throws ExitException
      */
     public function pushFeatureIntoReleaseCandidate(Release $release, Feature $feature)
     {
-        // TODO: Implement pushFeatureIntoReleaseCandidate() method.
+        try {
+            $process = new Process(
+                "git pull origin {$feature->getName()} && git push origin {$release->getBranch()}"
+            );
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+        } catch (ProcessFailedException $e) {
+            throw new ExitException($e);
+        }
+
+        $release->addFeature($feature);
+    }
+
+    /**
+     * @param Feature $feature
+     * @param Release $release
+     *
+     * @return bool
+     * @throws ExitException
+     */
+    public function isFeatureReadyForRelease(Feature $feature, Release $release)
+    {
+        try {
+            $process = new Process(
+                "git checkout {$release->getBranch()} && " .
+                "git pull origin {$feature->getName()}"
+            );
+            $process->setWorkingDirectory(getcwd());
+            $process->mustRun();
+
+            try {
+                $process = new Process("git reset --hard ORIG_HEAD");
+                $process->setWorkingDirectory(getcwd());
+                $process->mustRun();
+            } catch (ProcessFailedException $e) {
+                throw new ExitException($e);
+            }
+
+            return true;
+        } catch (ProcessFailedException $e) {
+            try {
+                $process = new Process("git merge --abort");
+                $process->setWorkingDirectory(getcwd());
+                $process->mustRun();
+            } catch (ProcessFailedException $e) {
+                throw new ExitException($e);
+            }
+            return false;
+        }
     }
 }

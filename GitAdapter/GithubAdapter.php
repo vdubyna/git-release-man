@@ -14,7 +14,7 @@ use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Version;
 
-class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
+class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, GitServiceInterface
 {
     /**
      * @var Client
@@ -228,6 +228,21 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
+     * @param Feature $feature
+     *
+     * @return Feature
+     */
+    public function markFeatureReadyForTest(Feature $feature)
+    {
+        if (!$feature->getMergeRequestNumber()) {
+            $mergeRequest = $this->openMergeRequestByFeature($feature);
+            $feature->setMergeRequestNumber($mergeRequest->getNumber());
+        }
+
+        return parent::markFeatureReadyForTest($feature);
+    }
+
+    /**
      * @return Version
      */
     protected function getLatestVersion()
@@ -297,6 +312,17 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             'squash'
         );
         $release->addFeature($feature);
+    }
+
+    /**
+     * @param Feature $feature
+     * @param Release $release
+     *
+     * @return bool
+     */
+    public function isFeatureReadyForRelease(Feature $feature, Release $release)
+    {
+        return $feature->getMergeRequest()->getIsMergeable();
     }
 
     /**
