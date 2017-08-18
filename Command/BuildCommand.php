@@ -13,7 +13,6 @@ class BuildCommand extends Command
     protected $allowedActions = [
         'init'                     => 'initAction',
         'release-candidate'        => 'releaseCandidateAction',
-        'test'                     => 'testAction',
         'release-stable'           => 'releaseStableAction',
         'latest-release-stable'    => 'latestReleaseStableAction',
         'latest-release-candidate' => 'latestReleaseCandidateAction',
