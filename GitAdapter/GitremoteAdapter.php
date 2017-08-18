@@ -30,29 +30,14 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
         if ($this->_isFeatureStarted($feature)) {
             $feature->setStatus(Feature::STATUS_STARTED);
 
-            try {
-                $process = new Process("git log -1 --pretty=format:\"%H\" origin/{$featureName}");
-                $process->setWorkingDirectory(getcwd());
-                $process->mustRun();
-                $branchCommit = $process->getOutput();
-                $feature->setCommit($branchCommit);
-            } catch (ProcessFailedException $e) {
-                throw new ExitException($e);
-            }
+            $branchCommit = $this->execShellCommand("git log -1 --pretty=format:\"%H\" origin/{$featureName}");
+            $feature->setCommit($branchCommit);
 
-            try {
-                $process = new Process("git ls-remote --tags --refs origin | grep {$feature->getName()}");
-                $process->setWorkingDirectory(getcwd());
-                $process->mustRun();
-                $tagsList = explode("\n", $process->getOutput());
-                $tagsList = array_map(function ($tag) {
-                    $tagParts = explode('/', $tag);
-                    return end($tagParts);
-                }, $tagsList);
-            } catch (ProcessFailedException $e) {
-                $tagsList = [];
-            }
-            foreach ($tagsList as $tagName) {
+            foreach ($this->getListOfRefsByType('tags') as $tagName) {
+                if (strpos($tagName, $feature->getName()) === false) {
+                    continue;
+                }
+
                 if (0 === strpos($tagName, $this->getConfiguration()->getLabelForTest())) {
                     $feature->addLabel($this->getConfiguration()->getLabelForTest());
                     $feature->setStatus(Feature::STATUS_TEST);
@@ -75,28 +60,13 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function removeReleaseCandidates(Release $release)
     {
-        try {
-            $process = new Process("git ls-remote --heads --refs origin | grep {$release->getVersion()}-RC");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-            $items = explode("\n", $process->getOutput());
-            $items = array_map(function ($tag) {
-                $tagParts = explode('/', $tag);
-                return end($tagParts);
-            }, $items);
-        } catch (ProcessFailedException $e) {
-            $items = [];
-        }
-        $items = array_filter($items, function ($item) { return (empty($item)) ? false : true; });
+        $releaseCandidateVersion = "{$release->getVersion()}-" . Version::STABILITY_RC;
 
-        foreach ($items as $item) {
-            try {
-                $process = new Process("git push -d origin {$item}");
-                $process->setWorkingDirectory(getcwd());
-                $process->mustRun();
-            } catch (ProcessFailedException $e) {
-                throw new ExitException($e);
+        foreach ($this->getListOfRefsByType('heads') as $item) {
+            if (strpos($item, $releaseCandidateVersion) === false) {
+                continue;
             }
+            $this->execShellCommand("git push -d origin {$item}");
         }
     }
 
@@ -108,14 +78,8 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function addLabelToFeature(Feature $feature, $label)
     {
-        try {
-            $testLabel = $label . "--{$feature->getName()}";
-            $process = new Process("git tag -f {$testLabel} && git push origin {$testLabel}");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
+        $testLabel = $label . "--{$feature->getName()}";
+        $this->execShellCommand("git tag -f {$testLabel} && git push origin {$testLabel}");
     }
 
     /**
@@ -125,16 +89,14 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function removeLabelsFromFeature(Feature $feature)
     {
-        $labels = [$this->getConfiguration()->getLabelForTest(), $this->getConfiguration()->getLabelForRelease()];
+        $labels = [
+            $this->getConfiguration()->getLabelForTest(),
+            $this->getConfiguration()->getLabelForRelease()
+        ];
+
         foreach ($labels as $label) {
-            try {
-                $testLabel = $label . "--{$feature->getName()}";
-                $process = new Process("git push -d origin {$testLabel}");
-                $process->setWorkingDirectory(getcwd());
-                $process->mustRun();
-            } catch (ProcessFailedException $e) {
-                throw new ExitException($e);
-            }
+            $testLabel = $label . "--{$feature->getName()}";
+            $this->execShellCommand("git tag -f {$testLabel} && git push origin {$testLabel}");
         }
     }
 
@@ -145,28 +107,15 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeatureLabels(Feature $feature)
     {
-        try {
-            $process = new Process("git ls-remote --tags --refs origin | grep {$feature->getName()}");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-            $tagsList = explode("\n", $process->getOutput());
-            $tagsList = array_map(function ($tag) {
-                $tagParts = explode('/', $tag);
-                return end($tagParts);
-            }, $tagsList);
-            $tagsList = array_filter($tagsList, function ($tagName) {
-                if ((0 === strpos($tagName, $this->getConfiguration()->getLabelForTest()))
-                    || (0 === strpos($tagName, $this->getConfiguration()->getLabelForRelease()))
-                ) {
-                    return true;
-                } else {
-                    return false;
-                }
-            });
-        } catch (ProcessFailedException $e) {
-            $tagsList = [];
-        }
-        return $tagsList;
+        return array_filter($this->getListOfRefsByType('tags'), function ($tagName) {
+            if ((0 === strpos($tagName, $this->getConfiguration()->getLabelForTest()))
+                || (0 === strpos($tagName, $this->getConfiguration()->getLabelForRelease()))
+            ) {
+                return true;
+            } else {
+                return false;
+            }
+        });
     }
 
     /**
@@ -176,14 +125,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function _isFeatureStarted(Feature $feature)
     {
-        try {
-            $process = new Process("git ls-remote --heads origin | grep {$feature->getName()}");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-            return true;
-        } catch (ProcessFailedException $e) {
-            return false;
-        }
+        return !!$this->execShellCommand("git ls-remote --heads origin | grep {$feature->getName()}", false);
     }
 
     /**
@@ -191,39 +133,39 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     protected function getLatestVersion()
     {
-        $filterRefs = function (array $list) {
-            $items = array_map(function ($item) {
-                $parts = explode('/', $item);
-
-                return end($parts);
-            }, $list);
-
-            return array_filter($items, function ($name) {
-                try {
-                    Version::fromString($name);
-                    return true;
-                } catch (InvalidArgumentException $e) {
-                    return false;
-                }
-            });
-        };
-
-        $versions = array_reduce(['tags', 'heads'], function ($versions, $versionType) use ($filterRefs) {
-            try {
-                $process = new Process("git ls-remote --{$versionType} --refs origin");
-                $process->setWorkingDirectory(getcwd());
-                $process->mustRun();
-                $items = $filterRefs(explode("\n", $process->getOutput()));
-            } catch (ProcessFailedException $e) {
-                $items = [];
-            }
-
-            return array_merge($versions, $items);
+        $items = array_reduce(['tags', 'heads'], function ($versions, $versionType) {
+            return array_merge($versions, $this->getListOfRefsByType($versionType));
         }, []);
+
+        $versions = array_filter($items, function ($name) {
+            try {
+                Version::fromString($name);
+                return true;
+            } catch (InvalidArgumentException $e) {
+                return false;
+            }
+        });
+
         $versions = Semver::sort($versions);
-        $version = (empty($versions)) ? Configuration::DEFAULT_VERSION : end($versions);
+        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end($versions);
 
         return Version::fromString($version);
+    }
+
+    /**
+     * @param $versionType
+     *
+     * @return array
+     */
+    protected function getListOfRefsByType($versionType)
+    {
+        $result = $this->execShellCommand("git ls-remote --{$versionType} --refs origin", []);
+        $items  = array_map(function ($item) {
+            $parts = explode('/', $item);
+            return end($parts);
+        }, explode("\n", $result));
+
+        return $items;
     }
 
     /**
@@ -234,34 +176,23 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function startReleaseCandidate(Release $release)
     {
-        try {
-            $process = new Process(
-                "git fetch origin && git checkout -B master " .
-                "&& git checkout -B {$release->getBranch()} && git push origin {$release->getBranch()}"
-            );
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
-
+        $cmd = "git fetch origin && git checkout -B master " .
+            "&& git checkout -B {$release->getBranch()} && git push origin {$release->getBranch()}";
+        $this->execShellCommand($cmd);
         $release->setStatus(Release::STATUS_STARTED);
 
         return $release;
     }
 
+    /**
+     * @param Release $release
+     * @param Feature $feature
+     *
+     * @throws ExitException
+     */
     public function pushFeatureIntoRelease(Release $release, Feature $feature)
     {
-        try {
-            $process = new Process(
-                "git pull origin {$feature->getName()} && git push origin {$release->getBranch()}"
-            );
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
-
+        $this->execShellCommand("git pull origin {$feature->getName()} && git push origin {$release->getBranch()}");
         $release->addFeature($feature);
     }
 
@@ -273,14 +204,9 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function closeFeature(Feature $feature)
     {
-        try {
-            $process = new Process("git push -d origin {$feature->getName()}");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
+        $this->execShellCommand("git push -d origin {$feature->getName()}");
         $feature->setStatus(Feature::STATUS_CLOSE);
+
         return $feature;
     }
 
@@ -291,108 +217,50 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeaturesList()
     {
-        // Get list of tags
-        try {
-            $process = new Process('git fetch --all -q && git branch -r --list "origin/feature-*"');
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-            $features = $process->getOutput();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
+        $features = $this->execShellCommand('git fetch --all -q && git branch -r --list "origin/feature-*"');
 
-        return array_map(function ($branchName) {
-            $branchNameParts = explode('/', $branchName);
-            return $this->buildFeature($branchNameParts[1]);
+        return array_map(function ($featureName) {
+            $featureNameParts = explode('/', $featureName);
+            return $this->buildFeature($featureNameParts[1]);
         }, array_filter(explode("\n", $features)));
     }
 
+    /**
+     * @return string
+     * @throws ExitException
+     */
     public function getLatestReleaseStableTag()
     {
-        $filterRefs = function (array $list) {
-            $items = array_map(function ($item) {
-                $parts = explode('/', $item);
-
-                return end($parts);
-            }, $list);
-
-            return array_filter($items, function ($name) {
-                try {
-                    Version::fromString($name);
-                    return true;
-                } catch (InvalidArgumentException $e) {
-                    return false;
-                }
-            });
-        };
-
-        try {
-            $process = new Process("git ls-remote --tags --refs origin");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-            $tags = $filterRefs(explode("\n", $process->getOutput()));
-
-            if (empty($tags)) {
-                throw new ExitException("There is no stable version.");
+        $tags     = $this->getListOfRefsByType('tags');
+        $versions = array_filter($tags, function ($tag) {
+            try {
+                $version = Version::fromString($tag);
+                return ($version->isStable()) ? true : false;
+            } catch (InvalidArgumentException $e) {
+                return false;
             }
+        });
 
-            $versions = array_filter($tags, function ($tag) {
-                try {
-                    $version = Version::fromString($tag);
-                    return ($version->isStable()) ? true : false;
-                } catch (InvalidArgumentException $e) {
-                    return false;
-                }
-            });
-
-            return (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
+        return (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
     }
 
+    /**
+     * @return string
+     * @throws ExitException
+     */
     public function getLatestReleaseCandidateTag()
     {
-        $filterRefs = function (array $list) {
-            $items = array_map(function ($item) {
-                $parts = explode('/', $item);
-
-                return end($parts);
-            }, $list);
-
-            return array_filter($items, function ($name) {
-                try {
-                    Version::fromString($name);
-                    return true;
-                } catch (InvalidArgumentException $e) {
-                    return false;
-                }
-            });
-        };
-
-        try {
-            $process = new Process("git ls-remote --tags --refs origin");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-            $tags = $filterRefs(explode("\n", $process->getOutput()));
-
-            if (empty($tags)) {
-                throw new ExitException("There is no stable version.");
+        $tags     = $this->getListOfRefsByType('tags');
+        $versions = array_filter($tags, function ($tag) {
+            try {
+                $version = Version::fromString($tag);
+                return ($version->getStability() === Version::STABILITY_RC) ? true : false;
+            } catch (InvalidArgumentException $e) {
+                return false;
             }
+        });
 
-            $versions = array_filter($tags, function ($tag) {
-                try {
-                    $version = Version::fromString($tag);
-                    return ($version->getStability() === Version::STABILITY_RC) ? true : false;
-                } catch (InvalidArgumentException $e) {
-                    return false;
-                }
-            });
-
-            return (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
+        return (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
     }
 
     /**
@@ -407,35 +275,13 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
             throw new ExitException("You can start feature only if it has status: NEW.");
         }
 
-        // Check if branch does not exist locally
         if ($this->_isFeatureStarted($feature)) {
             throw new ExitException("Feature already exists");
         }
-        // Create branch
-        try {
-            $process = new Process("git checkout master && git checkout -B {$feature->getName()}");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
-        // Push branch
-        try {
-            $process = new Process("git push origin {$feature->getName()}");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
 
-        try {
-            $process = new Process("git log -1 --pretty=format:\"%H\" origin/{$feature->getName()}");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-            $branchCommit = $process->getOutput();
-        } catch(ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
+        $this->execShellCommand("git checkout master && git checkout -B {$feature->getName()}");
+        $this->execShellCommand("git push origin {$feature->getName()}");
+        $branchCommit = $this->execShellCommand("git log -1 --pretty=format:\"%H\" origin/{$feature->getName()}");
 
         $feature->setStatus(Feature::STATUS_STARTED)
                 ->setCommit($branchCommit);
@@ -446,19 +292,16 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param Release $release
      *
+     * @param string  $metadata
+     *
      * @return Release
+     * @throws ExitException
      */
     public function createReleaseTag(Release $release, $metadata = '')
     {
         $release->setMetadata($metadata); // TODO move to release object
         $releaseTag = (empty($metadata)) ? $release->getVersion() : $release->getVersion() . '+' . $metadata;
-        try {
-            $process = new Process("git tag {$releaseTag} && git push origin {$releaseTag}");
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
+        $this->execShellCommand("git tag {$releaseTag} && git push origin {$releaseTag}");
 
         return $release;
     }
@@ -472,16 +315,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function pushFeatureIntoReleaseCandidate(Release $release, Feature $feature)
     {
-        try {
-            $process = new Process(
-                "git pull origin {$feature->getName()} && git push origin {$release->getBranch()}"
-            );
-            $process->setWorkingDirectory(getcwd());
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
-            throw new ExitException($e);
-        }
-
+        $this->execShellCommand("git pull origin {$feature->getName()} && git push origin {$release->getBranch()}");
         $release->addFeature($feature);
     }
 
@@ -495,31 +329,37 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function isFeatureReadyForRelease(Feature $feature, Release $release)
     {
         try {
-            $process = new Process(
-                "git checkout {$release->getBranch()} && " .
-                "git pull origin {$feature->getName()}"
-            );
+            $this->execShellCommand("git checkout {$release->getBranch()} && git pull origin {$feature->getName()}");
+            $this->execShellCommand("git reset --hard ORIG_HEAD");
+            return true;
+        } catch (ExitException $e) {
+            $this->execShellCommand("git merge --abort");
+            return false;
+        }
+    }
+
+    /**
+     * @param string $command
+     *
+     * @param null|mixed   $defaultValue
+     *
+     * @return string
+     * @throws ExitException
+     */
+    protected function execShellCommand($command, $defaultValue = null)
+    {
+        try {
+            $process = new Process($command);
             $process->setWorkingDirectory(getcwd());
             $process->mustRun();
 
-            try {
-                $process = new Process("git reset --hard ORIG_HEAD");
-                $process->setWorkingDirectory(getcwd());
-                $process->mustRun();
-            } catch (ProcessFailedException $e) {
+            return $process->getOutput();
+        } catch (ProcessFailedException $e) {
+            if (empty($defaultValue)) {
                 throw new ExitException($e);
             }
 
-            return true;
-        } catch (ProcessFailedException $e) {
-            try {
-                $process = new Process("git merge --abort");
-                $process->setWorkingDirectory(getcwd());
-                $process->mustRun();
-            } catch (ProcessFailedException $e) {
-                throw new ExitException($e);
-            }
-            return false;
+            return $defaultValue;
         }
     }
 }
