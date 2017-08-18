@@ -129,7 +129,12 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $feature;
     }
 
-    public function getLabelsByMergeRequest($mergeRequestNumber)
+    /**
+     * @param Feature $feature
+     *
+     * @return array
+     */
+    public function getFeatureLabels(Feature $feature)
     {
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
@@ -137,51 +142,11 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $labels = $this->getApiClient()
             ->issues()
             ->labels()
-            ->all($username, $repository, $mergeRequestNumber);
+            ->all($username, $repository, $feature->getMergeRequestNumber());
 
         return array_map(function ($label) {
             return $label['name'];
         }, $labels);
-    }
-
-    /**
-     * @param $label
-     *
-     * @return MergeRequest[]
-     */
-    public function getMergeRequestsByLabel($label)
-    {
-        $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
-
-        $issues = $client
-            ->issues()
-            ->all(
-                $username,
-                $repository,
-                array('state' => 'open', 'labels' => $label)
-            );
-
-        $issues = array_filter($issues, function ($item) {
-            return isset($item['pull_request']);
-        });
-
-        // Replace issue object with pull request object
-        return array_map(function ($item) use ($client, $username, $repository) {
-            $mergeRequestInfo = $client->pullRequest()->show($username, $repository, $item['number']);
-
-            $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
-            $mergeRequest->setName($mergeRequestInfo['title'])
-                         ->setIsMergeable($mergeRequestInfo['mergeable'])
-                         ->setDescription($mergeRequestInfo['body'])
-                         ->setUrl($mergeRequestInfo['html_url'])
-                         ->setCommit($mergeRequestInfo['head']['sha'])
-                        ->setSourceBranch($mergeRequestInfo['head']['ref'])
-                        ->setTargetBranch($mergeRequestInfo['base']['ref']);
-
-            return $mergeRequest;
-        }, $issues);
     }
 
     /**
@@ -260,28 +225,6 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
         );
 
         return new MergeRequest($mergeRequestInfo['number']);
-    }
-
-    /**
-     * @return Version
-     */
-    public function getReleaseCandidateVersion()
-    {
-        $version = $this->getLatestVersion();
-
-        if ($version->isStable()) {
-            $version = $version->increase('minor');
-        }
-
-        return $version->increase('rc');
-    }
-
-    /**
-     * @return Version
-     */
-    public function getReleaseStableVersion()
-    {
-        return $this->getLatestVersion()->increase('stable');
     }
 
     /**
@@ -487,9 +430,10 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface
             $mergeRequest = $this->getMergeRequestByFeature($feature);
 
             if ($mergeRequest && $mergeRequest->getNumber()) {
-                $labels = $this->getLabelsByMergeRequest($mergeRequest->getNumber());
+                $labels = $this->getFeatureLabels($feature);
                 $feature->setLabels($labels)
-                    ->setMergeRequestNumber($mergeRequest->getNumber());
+                    ->setMergeRequestNumber($mergeRequest->getNumber())
+                    ->setMergeRequest($mergeRequest);
 
                 if (in_array($this->getConfiguration()->getLabelForTest(), $feature->getLabels())) {
                     $feature->setStatus(Feature::STATUS_TEST);

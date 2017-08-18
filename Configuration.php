@@ -35,10 +35,18 @@ class Configuration
                 $configuration = Yaml::parse(file_get_contents($filePath));
 
                 // TODO verify values
-                $this->setGitAdapter($configuration['gitadapter']);
-                $this->setUsername($configuration['username']);
-                $this->setToken($configuration['token']);
-                $this->setRepository($configuration['repository']);
+                if (isset($configuration['gitadapter'])) {
+                    $this->setGitAdapter($configuration['gitadapter']);
+                }
+                if (isset($configuration['username'])) {
+                    $this->setUsername($configuration['username']);
+                }
+                if (isset($configuration['token'])) {
+                    $this->setToken($configuration['token']);
+                }
+                if (isset($configuration['repository'])) {
+                    $this->setRepository($configuration['repository']);
+                }
             }
         } catch (ParseException $e) {
             throw new ExitException("Unable to parse the YAML string: {$e->getMessage()}");

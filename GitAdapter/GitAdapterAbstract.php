@@ -7,6 +7,7 @@ use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\Entity\Release;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
+use Mirocode\GitReleaseMan\Version;
 
 abstract class GitAdapterAbstract implements GitAdapterInterface
 {
@@ -57,9 +58,14 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
 
     abstract public function removeReleaseCandidates($release);
 
-    abstract public function getMergeRequestsByLabel($label);
     abstract public function addLabelToFeature(Feature $feature, $label);
     abstract public function removeLabelsFromFeature(Feature $feature);
+    abstract public function getFeatureLabels(Feature $feature);
+
+    /**
+     * @return Version
+     */
+    abstract protected function getLatestVersion();
 
     /**
      * @param Release $release
@@ -88,15 +94,9 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeaturesByLabel($label)
     {
-        $mergeRequests = $this->getMergeRequestsByLabel($label);
-
-        return array_map(function (MergeRequest $mergeRequest) {
-            $feature = $this->buildFeature($mergeRequest->getSourceBranch());
-            $feature->setMergeRequest($mergeRequest)
-                    ->setMergeRequestNumber($mergeRequest->getNumber());
-
-            return $feature;
-        }, $mergeRequests);
+        return array_filter($this->getFeaturesList(), function (Feature $feature) use ($label) {
+            return (in_array($label, $feature->getLabels())) ? true : false;
+        });
     }
 
     /**
@@ -106,10 +106,10 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      */
     public function markFeatureReadyForTest(Feature $feature)
     {
-        $this->addLabelToFeature(
-            $feature,
-            $this->getConfiguration()->getLabelForTest()
-        );
+        $label = $this->getConfiguration()->getLabelForTest();
+        if (!in_array($label, $feature->getLabels())) {
+            $this->addLabelToFeature($feature, $label);
+        }
         $feature->setStatus(Feature::STATUS_TEST);
 
         return $feature;
@@ -122,10 +122,10 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      */
     public function markFeatureReadyForRelease(Feature $feature)
     {
-        $this->addLabelToFeature(
-            $feature,
-            $this->getConfiguration()->getLabelForRelease()
-        );
+        $label = $this->getConfiguration()->getLabelForRelease();
+        if (!in_array($label, $feature->getLabels())) {
+            $this->addLabelToFeature($feature, $label);
+        }
         $feature->setStatus(Feature::STATUS_RELEASE);
 
         return $feature;
@@ -144,5 +144,27 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
         $feature->setStatus(Feature::STATUS_STARTED);
 
         return $feature;
+    }
+
+    /**
+     * @return Version
+     */
+    public function getReleaseCandidateVersion()
+    {
+        $version = $this->getLatestVersion();
+
+        if ($version->isStable()) {
+            $version = $version->increase('minor');
+        }
+
+        return $version->increase('rc');
+    }
+
+    /**
+     * @return Version
+     */
+    public function getReleaseStableVersion()
+    {
+        return $this->getLatestVersion()->increase('stable');
     }
 }

@@ -16,12 +16,15 @@ class FeatureCommand extends Command
      * @inheritdoc
      */
     protected $allowedActions = array(
-        'start'   => 'start',
-        'close'   => 'close',
-        'test'    => 'test',
-        'release' => 'release',
-        'info'    => 'info',
-        'list'    => 'featuresList',
+        'start'             => 'start',
+        'close'             => 'close',
+        'release-candidate' => 'releaseCandidate',
+        'release-stable'    => 'releaseStable',
+
+        'test'              => 'test',
+        'release'           => 'release',
+
+        'info'              => 'info',
     );
 
     /**
@@ -36,9 +39,9 @@ class FeatureCommand extends Command
     {
         $this->setName('git-release:feature')
              ->addArgument('name', InputArgument::REQUIRED, 'Feature Name')
-             ->addArgument('action', InputArgument::REQUIRED, 'Action [start, close, test, release, info, list]')
+             ->addArgument('action', InputArgument::REQUIRED, 'Action [start, close, test, release, info]')
              ->setDescription('Feature git workflow tool')
-             ->setHelp('Feature actions: list, open, close, reopen, test, release, info');
+             ->setHelp('Feature actions: open, close, reopen, test, release, info');
         parent::configure();
     }
 
@@ -83,6 +86,7 @@ class FeatureCommand extends Command
         } elseif ($feature->getStatus() === Feature::STATUS_TEST
             || $feature->getStatus() === Feature::STATUS_RELEASE
         ) {
+            $this->confirmOrExit("Do you want to re-start this feature:");
             $this->getGitAdapter()->markFeatureAsNew($feature);
         } else {
             $this->getStyleHelper()
@@ -111,9 +115,42 @@ class FeatureCommand extends Command
     }
 
     /**
-     * Open Pull Request to make feature available for QA testing
+     * make feature available for QA testing
      */
     public function test()
+    {
+        $feature = $this->getFeature();
+        print_r($feature);
+        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for testing");
+        $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
+
+        if ($feature->getStatus() === Feature::STATUS_NEW) {
+            $this->getStyleHelper()
+                 ->warning("Feature {$feature->getName()} should be started before go to test status.");
+        } elseif ($feature->getStatus() === Feature::STATUS_STARTED) {
+            $this->getGitAdapter()
+                 ->markFeatureReadyForTest($feature);
+            $this->getStyleHelper()
+                 ->success("Feature \"{$feature->getName()}\" marked ready for test");
+            $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
+        } elseif ($feature->getStatus() === Feature::STATUS_TEST) {
+            $this->getStyleHelper()
+                 ->note("Feature {$feature->getName()} already marked ready for test. " .
+                     "See merge request {$feature->getMergeRequestNumber()}.");
+            $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
+        } else {
+            $this->getStyleHelper()
+                 ->warning("Feature status: {$feature->getStatus()} not valid to go to test.");
+        }
+    }
+
+
+
+
+    /**
+     * Open Pull Request to make feature available for QA testing
+     */
+    public function releaseCandidate()
     {
         $feature = $this->getFeature();
 
@@ -128,12 +165,14 @@ class FeatureCommand extends Command
                 $mergeRequest = $this->getGitAdapter()
                                      ->openMergeRequestByFeature($feature);
                 $feature->setMergeRequestNumber($mergeRequest->getNumber());
+                $this->getStyleHelper()
+                     ->success("Merge request \"{$feature->getMergeRequestNumber()}\" created.");
             }
 
             $this->getGitAdapter()
                  ->markFeatureReadyForTest($feature);
             $this->getStyleHelper()
-                 ->success("Merge request \"{$feature->getMergeRequestNumber()}\" created ");
+                 ->success("Merge request \"{$feature->getMergeRequestNumber()}\" marked for release candidate");
             $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
         } elseif ($feature->getStatus() === Feature::STATUS_TEST) {
             $this->getStyleHelper()
@@ -149,7 +188,7 @@ class FeatureCommand extends Command
     /**
      * Mark Merge Request ready to go to production
      */
-    public function release()
+    public function releaseStable()
     {
         $feature = $this->getFeature();
 

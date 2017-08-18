@@ -3,9 +3,9 @@
 namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Bitbucket\API\Http\Listener\BasicAuthListener;
-use Bitbucket\API\Repositories\Refs\Branches;
 use Composer\Semver\Semver;
 use InvalidArgumentException;
+use Bitbucket\API\Api as Client;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\Entity\Release;
@@ -16,40 +16,37 @@ use Mirocode\GitReleaseMan\Version;
 
 class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
 {
+    protected $apiClient;
 
     /**
-     * @return array|Branches|\Buzz\Message\MessageInterface|mixed
+     * @return Feature[]
      */
     public function getFeaturesList()
     {
         $username   = $this->getConfiguration()->getUsername();
-        $token      = $this->getConfiguration()->getToken();
         $repository = $this->getConfiguration()->getRepository();
 
-        $branches = new Branches();
-        $branches->getClient()->addListener(
-            new BasicAuthListener($username, $token)
-        );
+        /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
+        $branchesApi = $this->getApiClient()->api('Repositories\Refs\Branches');
 
-        $branches = $branches->all($username, $repository);
-        $branches = json_decode($branches->getContent(), true);
-        $branches = $branches['values'];
+        $branches = json_decode($branchesApi->all($username, $repository)->getContent(), true);
+        $branchesInfo = $branches['values'];
 
-        if (empty($branches)) {
+        if (empty($branchesInfo)) {
             return array();
         }
 
-        $branches = array_map(function ($branch) {
+        $branchesNames = array_map(function ($branch) {
             return $branch['name'];
-        }, $branches);
+        }, $branchesInfo);
 
-        $branches = array_filter($branches, function ($branch) {
+        $features = array_filter($branchesNames, function ($branch) {
             return (strpos($branch, 'feature') === 0);
         });
 
         $features = array_map(function ($branch) {
             return $this->buildFeature($branch);
-        }, $branches);
+        }, $features);
 
         return $features;
     }
@@ -67,9 +64,12 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $repository  = $this->getConfiguration()->getRepository();
 
         try {
-            $featureInfo = $this->getApiClient()->repository()->branches($username, $repository, $featureName);
-        } catch (\Github\Exception\RuntimeException $e) {
-            $featureInfo = array();
+            /** @var \Bitbucket\API\Repositories\Refs\Branches $branches */
+            $branches = $this->getApiClient()->api('Repositories\Refs\Branches');
+            $featureInfo = $branches->get($username, $repository, $featureName);
+            $featureInfo = json_decode($featureInfo->getContent(), true);
+        } catch (\Exception $e) { // TODO Verify right exception
+            $featureInfo = [];
         }
 
         $feature = new Feature($featureName);
@@ -78,14 +78,16 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
             $feature->setStatus(Feature::STATUS_NEW);
         } else {
             $feature->setStatus(Feature::STATUS_STARTED)
-                    ->setCommit($featureInfo['commit']['sha']);
+                    ->setCommit($featureInfo['target']['hash']);
 
             $mergeRequest = $this->getMergeRequestByFeature($feature);
 
             if ($mergeRequest && $mergeRequest->getNumber()) {
-                $labels = $this->getLabelsByMergeRequest($mergeRequest->getNumber());
-                $feature->setLabels($labels)
-                        ->setMergeRequestNumber($mergeRequest->getNumber());
+                $feature->setMergeRequestNumber($mergeRequest->getNumber())
+                        ->setMergeRequest($mergeRequest);
+
+                $labels = $this->getFeatureLabels($feature);
+                $feature->setLabels($labels);
 
                 if (in_array($this->getConfiguration()->getLabelForTest(), $feature->getLabels())) {
                     $feature->setStatus(Feature::STATUS_TEST);
@@ -96,6 +98,8 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
                 }
             }
         }
+
+        return $feature;
     }
 
     public function removeReleaseCandidates($release)
@@ -103,14 +107,20 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         // TODO: Implement removeReleaseCandidates() method.
     }
 
-    public function getMergeRequestsByLabel($label)
-    {
-        // TODO: Implement getMergeRequestsByLabel() method.
-    }
-
     public function addLabelToFeature(Feature $feature, $label)
     {
-        // TODO: Implement addLabelToFeature() method.
+        $username = $this->getConfiguration()->getUsername();
+        $repository = $this->getConfiguration()->getRepository();
+
+        /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
+
+        $mergeRequestsApi->update($username, $repository, $feature->getMergeRequestNumber(), [
+            'title'       => "{{$label}} " . $feature->getMergeRequest()->getName(),
+            'destination' => ['branch' => ['name' => $feature->getMergeRequest()->getTargetBranch()]]
+        ]);
+
+        $feature->addLabel($label);
     }
 
     public function removeLabelsFromFeature(Feature $feature)
@@ -125,7 +135,35 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function startReleaseCandidate(Release $release)
     {
-        // TODO: Implement startReleaseCandidate() method.
+        $username     = $this->getConfiguration()->getUsername();
+        $token        = $this->getConfiguration()->getToken();
+        $repository   = $this->getConfiguration()->getRepository();
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+
+
+
+        $bitbucketApi = new \Bitbucket\API\Api(['base_url' => 'https://api.bitbucket.org/rest/api']);
+        $bitbucketApi->getClient()->addListener(
+            new \Bitbucket\API\Http\Listener\BasicAuthListener($username, $token)
+        );
+        /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
+        $branchesApi = $bitbucketApi->api('Repositories\Refs\Branches');
+        $masterBranchInfo = json_decode($branchesApi->get($username, $repository, $masterBranch)->getContent(), true);
+
+        $branchCreated = $branchesApi->create(
+            $username,
+            $repository,
+            [
+                'name' => $release->getVersion(),
+                'startPoint' => $masterBranchInfo['target']['hash'],
+                'message' => 'create new release',
+            ]
+        );
+        print_r($branchCreated);
+
+        $release->setStatus(Release::STATUS_STARTED);
+
+        return $release;
     }
 
     public function pushFeatureIntoRelease(Release $release, Feature $feature)
@@ -167,11 +205,51 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param Feature $feature
      *
-     * @return MergeRequest
+     * @return MergeRequest|null
      */
     public function getMergeRequestByFeature(Feature $feature)
     {
-        // TODO: Implement getMergeRequestByFeature() method.
+        $username     = $this->getConfiguration()->getUsername();
+        $repository   = $this->getConfiguration()->getRepository();
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+
+        /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
+        $mergeRequests = $mergeRequestsApi->all($username, $repository, ['state' => 'OPEN'])->getContent();
+        $mergeRequests = json_decode($mergeRequests, true);
+
+
+        foreach ($mergeRequests['values'] as $mergeRequestInfo) {
+            if ($mergeRequestInfo['source']['branch']['name'] === $feature->getName()
+                && $mergeRequestInfo['destination']['branch']['name'] === $masterBranch
+            ) {
+                $diff = $mergeRequestsApi->diff($username, $repository,  $mergeRequestInfo['id'])->getContent();
+                $diffFiles = explode("diff --git ", $diff);
+
+                // Dirty hack to detect if pull request is mergeable
+                $isMergeable = true;
+                foreach ($diffFiles as $diffFile) {
+                    if (strpos($diffFile, '<<<<<<< destination') !== false
+                        && strpos($diffFile, '>>>>>>> source') !== false
+                    ) {
+                        $isMergeable = false;
+                        break;
+                    }
+                }
+
+                $mergeRequest = new MergeRequest($mergeRequestInfo['id']);
+                $mergeRequest->setName($mergeRequestInfo['title'])
+                    ->setCommit($mergeRequestInfo['source']['commit']['hash'])
+                    ->setSourceBranch($mergeRequestInfo['source']['branch']['name'])
+                    ->setUrl($mergeRequestInfo['links']['html']['href'])
+                    ->setTargetBranch($mergeRequestInfo['destination']['branch']['name'])
+                    ->setDescription($mergeRequestInfo['description'])
+                    ->setIsMergeable($isMergeable);
+
+                return $mergeRequest;
+            }
+        }
+        return null;
     }
 
     /**
@@ -205,18 +283,77 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
-     * @return Version
+     * @return Client
      */
-    public function getReleaseCandidateVersion()
+    protected function getApiClient()
     {
-        // TODO: Implement getReleaseCandidateVersion() method.
+        if (empty($this->apiClient)) {
+            $username = $this->getConfiguration()->getUsername();
+            $token    = $this->getConfiguration()->getToken();
+
+            $bitbucket = new \Bitbucket\API\Api();
+            $bitbucket->getClient()->addListener(
+                new \Bitbucket\API\Http\Listener\BasicAuthListener($username, $token)
+            );
+            $this->apiClient = $bitbucket;
+        }
+
+        return $this->apiClient;
     }
 
-    /**
-     * @return Version
-     */
-    public function getReleaseStableVersion()
+    public function getFeatureLabels(Feature $feature)
     {
-        // TODO: Implement getReleaseStableVersion() method.
+        if ($feature->getMergeRequest()) {
+            preg_match('/(\{[A-Z-]*\})/', $feature->getMergeRequest()->getName(), $matches);
+            $labels = array_map(function ($label) {
+                return str_replace(['{', '}'], '', $label);
+            }, $matches);
+
+            return (empty($labels)) ? [] : $labels;
+        }
+
+        return array();
+    }
+
+    protected function getLatestVersion()
+    {
+        $username   = $this->getConfiguration()->getUsername();
+        $repository = $this->getConfiguration()->getRepository();
+        $client     = $this->getApiClient();
+
+        // get Tags
+        $versionsTags = array();
+        /** @var \Bitbucket\API\Repositories\Refs\Tags $tagsApi */
+        $tagsApi = $this->getApiClient()->api('Repositories\Refs\Tags');
+        $tags = json_decode($tagsApi->all($username, $repository)->getContent(), true);
+
+        foreach ($tags['values'] as $tagInfo) {
+            try {
+                Version::fromString($tagInfo['name']);
+                array_push($versionsBranches, $tagInfo['name']);
+            } catch (InvalidArgumentException $e) {
+                continue;
+            }
+        }
+
+        // get Branches
+        $versionsBranches = array();
+        /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
+        $branchesApi = $this->getApiClient()->api('Repositories\Refs\Branches');
+        $branches = json_decode($branchesApi->all($username, $repository)->getContent(), true);
+
+        foreach ($branches['values'] as $branchInfo) {
+            try {
+                Version::fromString($branchInfo['name']);
+                array_push($versionsBranches, $branchInfo['name']);
+            } catch (InvalidArgumentException $e) {
+                continue;
+            }
+        }
+
+        $versions = array_merge($versionsTags, $versionsBranches);
+        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+
+        return Version::fromString($version);
     }
 }

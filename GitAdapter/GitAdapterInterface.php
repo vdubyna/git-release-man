@@ -70,18 +70,6 @@ interface GitAdapterInterface
     public function startFeature(Feature $feature);
 
     /**
-     * @return Version
-     */
-    public function getReleaseCandidateVersion();
-
-
-    /**
-     * @return Version
-     */
-    public function getReleaseStableVersion();
-
-
-    /**
      * @param Release $release
      *
      * @return Release
