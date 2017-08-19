@@ -83,7 +83,8 @@ class BuildCommand extends Command
                 "- {$feature->getName()} pushed into release {$releaseCandidate->getVersion()}");
         }
 
-        $this->getGitAdapter()->createReleaseTag($releaseCandidate, date('Y-m-d_h-i-s'));
+        $releaseCandidate->setMetadata(date('Y-m-d_h-i-s'));
+        $this->getGitAdapter()->createReleaseTag($releaseCandidate);
 
         $this->getStyleHelper()
              ->success("New Release Candidate \"{$releaseCandidate->getVersion()}\" is ready for testing");

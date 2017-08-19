@@ -59,7 +59,7 @@ interface GitAdapterInterface
      *
      * @return Release
      */
-    public function createReleaseTag(Release $release, $metadata = '');
+    public function createReleaseTag(Release $release);
 
     /**
      * @param Release $release

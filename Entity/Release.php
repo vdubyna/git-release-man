@@ -41,7 +41,7 @@ class Release
      */
     public function getVersion()
     {
-        return $this->version;
+        return ($this->getMetadata()) ? $this->version . '+' . $this->getMetadata() : $this->version;
     }
 
     /**

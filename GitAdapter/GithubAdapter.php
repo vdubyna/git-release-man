@@ -327,32 +327,28 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
     /**
      * @param Release $release
-     * @param string  $metadata
      *
      * @return Release
      */
-    public function createReleaseTag(Release $release, $metadata = '')
+    public function createReleaseTag(Release $release)
     {
         $client            = $this->getApiClient();
         $repository        = $this->getConfiguration()->getRepository();
         $username          = $this->getConfiguration()->getUsername();
 
-        $release->setMetadata($metadata); // TODO move to release object
         $releaseBranchInfo = $client
             ->repository()
             ->branches($username, $repository, $release->getBranch());
-        $releaseTag = (empty($metadata)) ? $release->getVersion() : $release->getVersion() . '+' . $metadata;
         $client->repository()
                ->releases()
                ->create($username, $repository,
                    array(
-                       'tag_name'         => $releaseTag,
-                       'name'             => $releaseTag,
+                       'tag_name'         => $release->getVersion(),
+                       'name'             => $release->getVersion(),
                        'prerelease'       => (!$release->isStable()),
                        'target_commitish' => $releaseBranchInfo['commit']['sha'],
                    )
                );
-
 
         return $release;
     }

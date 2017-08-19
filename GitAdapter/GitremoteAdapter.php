@@ -292,17 +292,11 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
     /**
      * @param Release $release
      *
-     * @param string  $metadata
-     *
      * @return Release
-     * @throws ExitException
      */
-    public function createReleaseTag(Release $release, $metadata = '')
+    public function createReleaseTag(Release $release)
     {
-        $release->setMetadata($metadata); // TODO move to release object
-        $releaseTag = (empty($metadata)) ? $release->getVersion() : $release->getVersion() . '+' . $metadata;
-        $this->execShellCommand("git tag {$releaseTag} && git push origin {$releaseTag}");
-
+        $this->execShellCommand("git tag {$release->getVersion()} && git push origin {$release->getVersion()}");
         return $release;
     }
 
