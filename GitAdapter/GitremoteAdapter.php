@@ -27,7 +27,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $feature = new Feature($featureName);
         $feature->setStatus(Feature::STATUS_NEW);
 
-        if ($this->_isFeatureStarted($feature)) {
+        if ($this->isFeatureStarted($feature)) {
             $feature->setStatus(Feature::STATUS_STARTED);
 
             $branchCommit = $this->execShellCommand("git log -1 --pretty=format:\"%H\" origin/{$featureName}");
@@ -123,7 +123,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      *
      * @return bool
      */
-    public function _isFeatureStarted(Feature $feature)
+    public function isFeatureStarted(Feature $feature)
     {
         return !!$this->execShellCommand("git ls-remote --heads origin | grep {$feature->getName()}", false);
     }
@@ -275,7 +275,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
             throw new ExitException("You can start feature only if it has status: NEW.");
         }
 
-        if ($this->_isFeatureStarted($feature)) {
+        if ($this->isFeatureStarted($feature)) {
             throw new ExitException("Feature already exists");
         }
 
