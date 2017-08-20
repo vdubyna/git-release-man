@@ -24,6 +24,10 @@ final class Version
     const STABILITY_RC     = 'RC';
     const STABILITY_STABLE = 'STABLE';
 
+    const TYPE_MINOR = 'minor';
+    const TYPE_MAJOR = 'major';
+    const TYPE_PATCH = 'patch';
+
     private $major;
     private $minor;
     private $patch;
@@ -143,22 +147,22 @@ final class Version
     public function increase($stability, $metaData = '')
     {
         switch ($stability) {
-            case 'patch':
+            case self::TYPE_PATCH:
                 return new self($this->major, $this->minor, $this->patch + 1);
-            case 'minor':
+            case self::TYPE_MINOR:
                 return new self($this->major, $this->minor + 1, 0);
-            case 'major':
+            case self::TYPE_MAJOR:
                 return new self($this->major + 1, 0, 0);
-            case 'alpha':
-            case 'beta':
-            case 'rc':
+            case self::STABILITY_ALPHA:
+            case self::STABILITY_BETA:
+            case self::STABILITY_RC:
                 if (self::$stabilises[$this->stability] === 3) {
                     return new self($this->major, $this->minor, $this->patch, $stability, 1, $metaData);
                 } else {
                     return new self($this->major, $this->minor, $this->patch, $stability,
                         $this->stabilityVersion + 1, $metaData);
                 }
-            case 'stable':
+            case self::STABILITY_STABLE:
                 if ($this->major === 0) {
                     return new self(1, 0, 0);
                 } else {
@@ -168,7 +172,17 @@ final class Version
                 throw new \InvalidArgumentException(
                     sprintf(
                         'Unknown stability "%s", accepts "%s" ', $stability,
-                        implode('", "', array('alpha', 'beta', 'rc', 'stable', 'major', 'minor', 'patch'))
+                        implode('", "',
+                            array(
+                                self::STABILITY_ALPHA,
+                                self::STABILITY_BETA,
+                                self::STABILITY_RC,
+                                self::STABILITY_STABLE,
+                                self::TYPE_MINOR,
+                                self::TYPE_MAJOR,
+                                self::TYPE_PATCH,
+                            )
+                        )
                     )
                 );
         }

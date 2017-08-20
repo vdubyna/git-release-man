@@ -37,7 +37,7 @@ abstract class AbstractCommand extends Command
     {
         if (empty($this->gitAdapter)) {
             $gitAdapterName   = $this->getConfiguration()->getGitAdapterClassName();
-            $this->gitAdapter = new $gitAdapterName($this->getConfiguration());
+            $this->gitAdapter = new $gitAdapterName($this->getConfiguration(), $this->getStyleHelper());
         }
 
         return $this->gitAdapter;

@@ -112,7 +112,7 @@ class BuildCommand extends Command
         }
 
         foreach ($features as $feature) {
-            $this->getGitAdapter()->pushFeatureIntoRelease($releaseStable, $feature);
+            $this->getGitAdapter()->pushFeatureIntoReleaseStable($releaseStable, $feature);
             $this->getStyleHelper()->success("Feature {$feature->getMergeRequestNumber()} " .
                 "- {$feature->getName()} pushed into release {$releaseStable->getVersion()}");
         }

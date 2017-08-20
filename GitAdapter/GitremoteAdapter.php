@@ -190,7 +190,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      *
      * @throws ExitException
      */
-    public function pushFeatureIntoRelease(Release $release, Feature $feature)
+    public function pushFeatureIntoReleaseStable(Release $release, Feature $feature)
     {
         $this->execShellCommand("git pull origin {$feature->getName()} && git push origin {$release->getBranch()}");
         $release->addFeature($feature);

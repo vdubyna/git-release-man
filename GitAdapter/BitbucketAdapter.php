@@ -166,7 +166,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $release;
     }
 
-    public function pushFeatureIntoRelease(Release $release, Feature $feature)
+    public function pushFeatureIntoReleaseStable(Release $release, Feature $feature)
     {
         // TODO: Implement pushFeatureIntoRelease() method.
     }

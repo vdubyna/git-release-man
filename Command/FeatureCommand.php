@@ -125,7 +125,7 @@ class FeatureCommand extends Command
                  ->warning("Feature {$feature->getName()} should be started before go to test status.");
         } elseif ($feature->getStatus() === Feature::STATUS_STARTED) {
             $this->getGitAdapter()
-                 ->markFeatureReadyForTest($feature);
+                 ->markFeatureReadyForReleaseCandidate($feature);
             $this->getStyleHelper()
                  ->success("Feature marked for release candidate");
             $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
@@ -156,7 +156,7 @@ class FeatureCommand extends Command
                  );
         } elseif ($feature->getStatus() === Feature::STATUS_TEST) {
             $this->getGitAdapter()
-                 ->markFeatureReadyForRelease($feature);
+                 ->markFeatureReadyForReleaseStable($feature);
             $this->getStyleHelper()
                  ->success("Feature {$feature->getName()} marked ready for release.");
             $this->getStyleHelper()

@@ -232,14 +232,14 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      *
      * @return Feature
      */
-    public function markFeatureReadyForTest(Feature $feature)
+    public function markFeatureReadyForReleaseCandidate(Feature $feature)
     {
         if (!$feature->getMergeRequestNumber()) {
             $mergeRequest = $this->openMergeRequestByFeature($feature);
             $feature->setMergeRequestNumber($mergeRequest->getNumber());
         }
 
-        return parent::markFeatureReadyForTest($feature);
+        return parent::markFeatureReadyForReleaseCandidate($feature);
     }
 
     /**
@@ -297,7 +297,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      * @param Release $release
      * @param Feature $feature
      */
-    public function pushFeatureIntoRelease(Release $release, Feature $feature)
+    public function pushFeatureIntoReleaseStable(Release $release, Feature $feature)
     {
         $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
@@ -493,19 +493,21 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function removeLabelsFromFeature(Feature $feature)
     {
-        $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
-        $client     = $this->getApiClient();
+        if ($feature->getMergeRequestNumber()) {
+            $repository = $this->getConfiguration()->getRepository();
+            $username   = $this->getConfiguration()->getUsername();
+            $client     = $this->getApiClient();
 
-        $labels = array(
-            $this->getConfiguration()->getLabelForRelease(),
-            $this->getConfiguration()->getLabelForTest(),
-        );
+            $labels = array(
+                $this->getConfiguration()->getLabelForRelease(),
+                $this->getConfiguration()->getLabelForTest(),
+            );
 
-        foreach ($labels as $label) {
-            $client->issues()
-                   ->labels()
-                   ->remove($username, $repository, $feature->getMergeRequestNumber(), $label);
+            foreach ($labels as $label) {
+                $client->issues()
+                       ->labels()
+                       ->remove($username, $repository, $feature->getMergeRequestNumber(), $label);
+            }
         }
     }
 

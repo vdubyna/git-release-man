@@ -8,23 +8,10 @@ use Mirocode\GitReleaseMan\Version;
 
 interface GitAdapterInterface
 {
-
-    /**
-     * @param Feature $feature
-     *
-     * @return Feature
-     */
-    public function closeFeature(Feature $feature);
-
     /**
      * @return Feature[]
      */
     public function getFeaturesList();
-
-    public function getLatestReleaseStableTag();
-
-    public function getLatestReleaseCandidateTag();
-
 
     /**
      * @param Feature $feature
@@ -38,14 +25,14 @@ interface GitAdapterInterface
      *
      * @return Feature
      */
-    public function markFeatureReadyForTest(Feature $feature);
+    public function markFeatureReadyForReleaseCandidate(Feature $feature);
 
     /**
      * @param Feature $feature
      *
      * @return Feature
      */
-    public function markFeatureReadyForRelease(Feature $feature);
+    public function markFeatureReadyForReleaseStable(Feature $feature);
 
     /**
      * @param Feature $feature
@@ -53,6 +40,13 @@ interface GitAdapterInterface
      * @return Feature
      */
     public function startFeature(Feature $feature);
+
+    /**
+     * @param Feature $feature
+     *
+     * @return Feature
+     */
+    public function closeFeature(Feature $feature);
 
     /**
      * @param Release $release
@@ -70,11 +64,45 @@ interface GitAdapterInterface
     public function pushFeatureIntoReleaseCandidate(Release $release, Feature $feature);
 
     /**
-     * @param $label
+     * @param Release $release
+     * @param Feature $feature
+     *
+     * @return void
+     */
+    public function pushFeatureIntoReleaseStable(Release $release, Feature $feature);
+
+    /**
+     * @param string $label
      *
      * @return Feature[]
      */
     public function getFeaturesByLabel($label);
 
+    /**
+     * @param Feature $feature
+     * @param Release $release
+     *
+     * @return bool
+     */
     public function isFeatureReadyForRelease(Feature $feature, Release $release);
+
+    /**
+     * @return Version
+     */
+    public function getReleaseStableVersion();
+
+    /**
+     * @return Version
+     */
+    public function getReleaseCandidateVersion();
+
+    /**
+     * @return string
+     */
+    public function getLatestReleaseStableTag();
+
+    /**
+     * @return string
+     */
+    public function getLatestReleaseCandidateTag();
 }

@@ -4,19 +4,20 @@ namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
-use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\Entity\Release;
-use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
+use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface as GitAdapterInterface;
 use Mirocode\GitReleaseMan\Version;
+use Symfony\Component\Console\Style\StyleInterface;
 
 abstract class GitAdapterAbstract implements GitAdapterInterface
 {
     protected $configuration;
-    protected $featureInfo;
+    protected $styleHelper;
 
-    public function __construct(Configuration $configuration)
+    public function __construct(Configuration $configuration, StyleInterface $styleHelper)
     {
         $this->configuration = $configuration;
+        $this->styleHelper   = $styleHelper;
     }
 
     /**
@@ -27,35 +28,6 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      * @return Feature
      */
     abstract public function buildFeature($featureName);
-
-    /**
-     * @param mixed $featureInfo
-     *
-     * @return GitAdapterAbstract
-     */
-    public function setFeatureInfo($featureInfo)
-    {
-        $this->featureInfo = $featureInfo;
-
-        return $this;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getFeatureInfo()
-    {
-        return $this->featureInfo;
-    }
-
-    /**
-     * @return Configuration
-     */
-    public function getConfiguration()
-    {
-        return $this->configuration;
-    }
-
     abstract public function removeReleaseCandidates(Release $release);
     abstract public function addLabelToFeature(Feature $feature, $label);
     abstract public function removeLabelsFromFeature(Feature $feature);
@@ -72,9 +44,6 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      * @return Release
      */
     abstract public function startReleaseCandidate(Release $release);
-    abstract public function pushFeatureIntoRelease(Release $release, Feature $feature);
-
-
 
     /**
      * @param Release $release
@@ -103,7 +72,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      *
      * @return Feature
      */
-    public function markFeatureReadyForTest(Feature $feature)
+    public function markFeatureReadyForReleaseCandidate(Feature $feature)
     {
         $label = $this->getConfiguration()->getLabelForTest();
         if (!in_array($label, $feature->getLabels())) {
@@ -119,7 +88,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      *
      * @return Feature
      */
-    public function markFeatureReadyForRelease(Feature $feature)
+    public function markFeatureReadyForReleaseStable(Feature $feature)
     {
         $label = $this->getConfiguration()->getLabelForRelease();
         if (!in_array($label, $feature->getLabels())) {
@@ -137,9 +106,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      */
     public function markFeatureAsNew(Feature $feature)
     {
-        if ($feature->getMergeRequestNumber()) {
-            $this->removeLabelsFromFeature($feature);
-        }
+        $this->removeLabelsFromFeature($feature);
         $feature->setStatus(Feature::STATUS_STARTED);
 
         return $feature;
@@ -153,10 +120,10 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
         $version = $this->getLatestVersion();
 
         if ($version->isStable()) {
-            $version = $version->increase('minor');
+            $version = $version->increase(Version::TYPE_MINOR);
         }
 
-        return $version->increase('rc');
+        return $version->increase(Version::STABILITY_RC);
     }
 
     /**
@@ -164,6 +131,22 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      */
     public function getReleaseStableVersion()
     {
-        return $this->getLatestVersion()->increase('stable');
+        return $this->getLatestVersion()->increase(Version::STABILITY_STABLE);
+    }
+
+    /**
+     * @return StyleInterface
+     */
+    protected function getStyleHelper()
+    {
+        return $this->styleHelper;
+    }
+
+    /**
+     * @return Configuration
+     */
+    protected function getConfiguration()
+    {
+        return $this->configuration;
     }
 }
