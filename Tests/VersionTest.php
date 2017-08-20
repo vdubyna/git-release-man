@@ -71,7 +71,7 @@ class VersionTest extends TestCase
     public function testVersionGetStability()
     {
         $versionObject = Version::fromString('v1.2.3-RC1');
-        $this->assertEquals('RC', $versionObject->getStability());
+        $this->assertEquals(Version::STABILITY_RC, $versionObject->getStability());
     }
 
     public function testVersionGetStabilityVersion()
@@ -83,12 +83,13 @@ class VersionTest extends TestCase
     public function increaseDataProvider()
     {
         return array(
-            array('1.0.0', '0.0.1', 'stable'),
-            array('1.0.0', 'v1', 'stable'),
+            array('1.0.0', '0.0.1', Version::STABILITY_STABLE),
+            array('1.0.0', 'v1', Version::STABILITY_STABLE),
 
+            array('1.1.0-RC1', 'v1.1', Version::STABILITY_RC),
             array('1.1.0-RC1', 'v1.1', 'rc'),
-            array('1.1.0-BETA1', 'v1.1', 'beta'),
-            array('1.1.0-ALPHA1', 'v1.1', 'alpha'),
+            array('1.1.0-BETA1', 'v1.1', Version::STABILITY_BETA),
+            array('1.1.0-ALPHA1', 'v1.1', Version::STABILITY_ALPHA),
 
             array('1.0.0', 'v0.1.3', 'major'),
             array('0.2.0', 'v0.1.3', 'minor'),
@@ -96,14 +97,14 @@ class VersionTest extends TestCase
             array('1.2.4', 'v1.2.3-RC1', 'patch'),
             array('1.2.4', 'v1.2.3-alpha.1', 'patch'),
 
-            array('1.2.3', 'v1.2.3-RC1', 'stable'),
-            array('1.2.3-RC2', 'v1.2.3-RC1', 'rc'),
-            array('1.2.3-ALPHA2', 'v1.2.3-alpha.1', 'alpha'),
-            array('1.2.3-BETA2', 'v1.2.3-beta1', 'beta'),
-            array('1.2.3', 'v1.2.3-RC1+2017-07-12', 'stable'),
+            array('1.2.3', 'v1.2.3-RC1', Version::STABILITY_STABLE),
+            array('1.2.3-RC2', 'v1.2.3-RC1', Version::STABILITY_RC),
+            array('1.2.3-ALPHA2', 'v1.2.3-alpha.1', Version::STABILITY_ALPHA),
+            array('1.2.3-BETA2', 'v1.2.3-beta1', Version::STABILITY_BETA),
+            array('1.2.3', 'v1.2.3-RC1+2017-07-12', Version::STABILITY_STABLE),
             array('2.0.0', 'v1.2.3-RC1+2017-07-12', 'major'),
             array('1.3.0', 'v1.2.3-RC1+2017-07-12', 'minor'),
-            array('1.2.3-RC2', 'v1.2.3-RC-1+2017-07-12', 'rc'),
+            array('1.2.3-RC2', 'v1.2.3-RC-1+2017-07-12', Version::STABILITY_RC),
         );
     }
 
@@ -134,7 +135,7 @@ class VersionTest extends TestCase
     public function testInvalidMetaversionException()
     {
         $this->expectException(\InvalidArgumentException::class);
-        $versionObject = new Version(1,2,3,'stable', 1);
+        $versionObject = new Version(1,2,3,Version::STABILITY_STABLE, 1);
     }
 
     public function testInvalidIncreaseStabilityException()

@@ -13,10 +13,10 @@ final class Version
     const VERSION_REGEX = '(?P<major>\d++)(?:\.(?P<minor>\d++))?(?:\.(?P<patch>\d++))?(?:[-.]?(?P<stability>beta|RC|alpha|stable)(?:[.-]?(?P<stabilityVersion>\d+)))?(?:[+]?(?P<metadata>.+))?';
 
     private static $stabilises = array(
-        'alpha'  => 0,
-        'beta'   => 1,
-        'rc'     => 2,
-        'stable' => 3,
+        Version::STABILITY_ALPHA  => 0,
+        Version::STABILITY_BETA   => 1,
+        Version::STABILITY_RC     => 2,
+        Version::STABILITY_STABLE => 3,
     );
 
     const STABILITY_ALPHA  = 'ALPHA';
@@ -24,9 +24,9 @@ final class Version
     const STABILITY_RC     = 'RC';
     const STABILITY_STABLE = 'STABLE';
 
-    const TYPE_MINOR = 'minor';
-    const TYPE_MAJOR = 'major';
-    const TYPE_PATCH = 'patch';
+    const TYPE_MINOR = 'MINOR';
+    const TYPE_MAJOR = 'MAJOR';
+    const TYPE_PATCH = 'PATCH';
 
     private $major;
     private $minor;
@@ -35,13 +35,14 @@ final class Version
     private $stabilityVersion;
     private $metadata;
 
-    public function __construct($major, $minor = 0, $patch = 0, $stability = 'stable', $stabilityVersion = 0, $metaData = '')
+    public function __construct($major, $minor = 0, $patch = 0, $stability = Version::STABILITY_STABLE,
+                                $stabilityVersion = 0, $metaData = '')
     {
         if (!isset(self::$stabilises[$stability])) {
             throw new \InvalidArgumentException(
                 sprintf(
                     'Unknown stability "%s", accepts "%s" ', $stability,
-                    implode('", "', array('alpha', 'beta', 'rc', 'stable', 'major', 'minor', 'patch'))
+                    implode('", "', array_keys(self::$stabilises))
                 )
             );
         }
@@ -65,12 +66,12 @@ final class Version
     public static function fromString($version)
     {
         if (preg_match('/^v?' . self::VERSION_REGEX . '$/i', $version, $matches)) {
-            $stability = strtolower(isset($matches['stability']) ? $matches['stability'] : 'stable');
+            $stability = strtoupper(isset($matches['stability']) ? $matches['stability'] : Version::STABILITY_STABLE);
             if (!isset(self::$stabilises[$stability])) {
                 throw new \InvalidArgumentException(
                     sprintf(
                         'Unknown stability "%s", accepts "%s" ', $stability,
-                        implode('", "', array('alpha', 'beta', 'rc', 'stable', 'major', 'minor', 'patch'))
+                        implode('", "', array_keys(self::$stabilises))
                     )
                 );
             }
@@ -146,6 +147,7 @@ final class Version
 
     public function increase($stability, $metaData = '')
     {
+        $stability = strtoupper($stability);
         switch ($stability) {
             case self::TYPE_PATCH:
                 return new self($this->major, $this->minor, $this->patch + 1);
