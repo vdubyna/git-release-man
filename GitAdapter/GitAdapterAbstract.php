@@ -28,9 +28,34 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      * @return Feature
      */
     abstract public function buildFeature($featureName);
+
+    /**
+     * @param Release $release
+     *
+     * @return void
+     */
     abstract public function removeReleaseCandidates(Release $release);
+
+    /**
+     * @param Feature $feature
+     * @param         $label
+     *
+     * @return void
+     */
     abstract public function addLabelToFeature(Feature $feature, $label);
+
+    /**
+     * @param Feature $feature
+     *
+     * @return void
+     */
     abstract public function removeLabelsFromFeature(Feature $feature);
+
+    /**
+     * @param Feature $feature
+     *
+     * @return array
+     */
     abstract public function getFeatureLabels(Feature $feature);
 
     /**
