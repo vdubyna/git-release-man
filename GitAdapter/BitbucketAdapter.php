@@ -14,7 +14,7 @@ use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Version;
 
-class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
+class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
 {
     protected $apiClient;
 
@@ -324,7 +324,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         // get Tags
         $versionsTags = array();
         /** @var \Bitbucket\API\Repositories\Refs\Tags $tagsApi */
-        $tagsApi = $this->getApiClient()->api('Repositories\Refs\Tags');
+        $tagsApi = $client->api('Repositories\Refs\Tags');
         $tags = json_decode($tagsApi->all($username, $repository)->getContent(), true);
 
         foreach ($tags['values'] as $tagInfo) {
@@ -339,7 +339,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         // get Branches
         $versionsBranches = array();
         /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
-        $branchesApi = $this->getApiClient()->api('Repositories\Refs\Branches');
+        $branchesApi = $client->api('Repositories\Refs\Branches');
         $branches = json_decode($branchesApi->all($username, $repository)->getContent(), true);
 
         foreach ($branches['values'] as $branchInfo) {
