@@ -10,16 +10,17 @@ class Feature
     protected $name;
     protected $status;
     protected $commit;
+
     protected $mergeRequestNumber;
     protected $mergeRequest;
-    protected $labels = array();
 
+    protected $labels = [];
 
-    const STATUS_NEW     = 'new';
-    const STATUS_STARTED = 'started';
-    const STATUS_TEST    = 'test';
-    const STATUS_RELEASE = 'release';
-    const STATUS_CLOSE   = 'close';
+    const STATUS_NEW               = 'new';
+    const STATUS_STARTED           = 'started';
+    const STATUS_CLOSE             = 'close';
+    const STATUS_RELEASE_CANDIDATE = 'release-candidate';
+    const STATUS_RELEASE_STABLE    = 'release-stable';
 
     public function __construct($name)
     {

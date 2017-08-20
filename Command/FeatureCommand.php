@@ -16,11 +16,11 @@ class FeatureCommand extends Command
      * @inheritdoc
      */
     protected $allowedActions = array(
-        'start'             => 'start',
-        'close'             => 'close',
-        'release-candidate' => 'releaseCandidate',
-        'release-stable'    => 'releaseStable',
-        'info'              => 'info',
+        'start'             => 'startAction',
+        'close'             => 'closeAction',
+        'release-candidate' => 'releaseCandidateAction',
+        'release-stable'    => 'releaseStableAction',
+        'info'              => 'infoAction',
     );
 
     /**
@@ -34,21 +34,22 @@ class FeatureCommand extends Command
     protected function configure()
     {
         $this->setName('git-release:feature')
-             ->addArgument('name', InputArgument::REQUIRED, 'Feature Name')
-             ->addArgument('action', InputArgument::REQUIRED, 'Action [start, close, test, release, info]')
+             ->addArgument('action', InputArgument::REQUIRED,
+                 'Action [' . implode(', ', array_keys($this->allowedActions)) . ']')
+             ->addOption('name', 'n', InputOption::VALUE_REQUIRED, 'Feature Name')
              ->setDescription('Feature git workflow tool')
-             ->setHelp('Feature actions: open, close, reopen, test, release, info');
+             ->setHelp('Feature actions: ' . implode(', ', array_keys($this->allowedActions)));
         parent::configure();
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->feature = $this->getGitAdapter()
-                              ->buildFeature($input->getArgument('name'));
+                              ->buildFeature($input->getOption('name'));
         parent::execute($input, $output);
     }
 
-    public function info()
+    public function infoAction()
     {
         $feature = $this->getFeature();
 
@@ -61,7 +62,7 @@ class FeatureCommand extends Command
      * We always start new features from Master branch
      * Master branch can be configured
      */
-    public function start()
+    public function startAction()
     {
         $feature = $this->getFeature();
 
@@ -79,8 +80,8 @@ class FeatureCommand extends Command
                  ->success(
                      "Feature {$feature->getName()} already exists on {$this->getConfiguration()->getGitAdapter()}."
                  );
-        } elseif ($feature->getStatus() === Feature::STATUS_TEST
-            || $feature->getStatus() === Feature::STATUS_RELEASE
+        } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_CANDIDATE
+            || $feature->getStatus() === Feature::STATUS_RELEASE_STABLE
         ) {
             $this->confirmOrExit("Do you want to re-start this feature:");
             $this->getGitAdapter()->markFeatureAsNew($feature);
@@ -95,7 +96,7 @@ class FeatureCommand extends Command
     /**
      * Removes feature branch from GitService
      */
-    public function close()
+    public function closeAction()
     {
         $feature = $this->getFeature();
 
@@ -113,7 +114,7 @@ class FeatureCommand extends Command
     /**
      * Open Pull Request to make feature available for QA testing
      */
-    public function releaseCandidate()
+    public function releaseCandidateAction()
     {
         $feature = $this->getFeature();
 
@@ -129,7 +130,7 @@ class FeatureCommand extends Command
             $this->getStyleHelper()
                  ->success("Feature marked for release candidate");
             $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
-        } elseif ($feature->getStatus() === Feature::STATUS_TEST) {
+        } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_CANDIDATE) {
             $this->getStyleHelper()
                  ->note("Feature {$feature->getName()} already marked ready for test.");
             $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
@@ -142,7 +143,7 @@ class FeatureCommand extends Command
     /**
      * Mark Merge Request ready to go to production
      */
-    public function releaseStable()
+    public function releaseStableAction()
     {
         $feature = $this->getFeature();
 
@@ -154,14 +155,14 @@ class FeatureCommand extends Command
                  ->warning(
                      "Feature {$feature->getName()} should be marked ready for test before go to release status."
                  );
-        } elseif ($feature->getStatus() === Feature::STATUS_TEST) {
+        } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_CANDIDATE) {
             $this->getGitAdapter()
                  ->markFeatureReadyForReleaseStable($feature);
             $this->getStyleHelper()
                  ->success("Feature {$feature->getName()} marked ready for release.");
             $this->getStyleHelper()
                  ->success("To move forward execute test command: git-release:build release");
-        } elseif ($feature->getStatus() === Feature::STATUS_RELEASE) {
+        } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_STABLE) {
             $this->getStyleHelper()
                  ->note("Feature {$feature->getName()} already marked ready for release.");
             $this->getStyleHelper()->success("To move forward execute test command: git-release:build release");

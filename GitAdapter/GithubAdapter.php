@@ -458,11 +458,11 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
                     ->setMergeRequest($mergeRequest);
 
                 if (in_array($this->getConfiguration()->getLabelForTest(), $feature->getLabels())) {
-                    $feature->setStatus(Feature::STATUS_TEST);
+                    $feature->setStatus(Feature::STATUS_RELEASE_CANDIDATE);
                 }
 
                 if (in_array($this->getConfiguration()->getLabelForRelease(), $feature->getLabels())) {
-                    $feature->setStatus(Feature::STATUS_RELEASE);
+                    $feature->setStatus(Feature::STATUS_RELEASE_STABLE);
                 }
             }
         }

@@ -103,7 +103,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
         if (!in_array($label, $feature->getLabels())) {
             $this->addLabelToFeature($feature, $label);
         }
-        $feature->setStatus(Feature::STATUS_TEST);
+        $feature->setStatus(Feature::STATUS_RELEASE_CANDIDATE);
 
         return $feature;
     }
@@ -119,7 +119,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
         if (!in_array($label, $feature->getLabels())) {
             $this->addLabelToFeature($feature, $label);
         }
-        $feature->setStatus(Feature::STATUS_RELEASE);
+        $feature->setStatus(Feature::STATUS_RELEASE_STABLE);
 
         return $feature;
     }

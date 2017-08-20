@@ -6,11 +6,11 @@ use Mirocode\GitReleaseMan\Version;
 
 class Release
 {
-    const STATUS_CLOSED          = 'closed';
-    const STATUS_STARTED         = 'started';
-    const STATUS_NEW             = 'new';
+    const STATUS_CLOSED = 'closed';
+    const STATUS_STARTED = 'started';
+    const STATUS_NEW = 'new';
 
-    const TYPE_RELEASE_STABLE    = 'stable';
+    const TYPE_RELEASE_STABLE = 'stable';
     const TYPE_RELEASE_CANDIDATE = 'candidate';
 
     /**
@@ -29,8 +29,8 @@ class Release
 
     public function __construct(Version $version, $branch, $isStable)
     {
-        $this->version = (string) $version;
-        $this->branch = (string) $branch;
+        $this->version = (string)$version;
+        $this->branch  = (string)$branch;
         //TODO Load the status from repository.
         $this->setStatus(self::STATUS_NEW);
         $this->isStable = $isStable;
@@ -78,7 +78,7 @@ class Release
         $this->metadata = $metadata;
 
         return $this;
-}
+    }
 
     /**
      * @return mixed
@@ -98,7 +98,7 @@ class Release
         $this->status = $status;
 
         return $this;
-}
+    }
 
     /**
      * @return mixed

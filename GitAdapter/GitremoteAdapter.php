@@ -40,12 +40,12 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
                 if (0 === strpos($tagName, $this->getConfiguration()->getLabelForTest())) {
                     $feature->addLabel($this->getConfiguration()->getLabelForTest());
-                    $feature->setStatus(Feature::STATUS_TEST);
+                    $feature->setStatus(Feature::STATUS_RELEASE_CANDIDATE);
                 }
 
                 if (0 === strpos($tagName, $this->getConfiguration()->getLabelForRelease())) {
                     $feature->addLabel($this->getConfiguration()->getLabelForRelease());
-                    $feature->setStatus(Feature::STATUS_RELEASE);
+                    $feature->setStatus(Feature::STATUS_RELEASE_STABLE);
                 }
             }
         }
