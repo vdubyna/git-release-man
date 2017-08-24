@@ -106,7 +106,7 @@ class FeatureCommand extends Command
 
         $feature = $this->getGitAdapter()->closeFeature($feature);
 
-        if ($feature->getStatus() === Feature::STATUS_CLOSE) {
+        if ($feature->getStatus() === Feature::STATUS_CLOSED) {
             $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" removed from remote repository.");
         }
     }

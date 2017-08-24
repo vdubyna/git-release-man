@@ -205,7 +205,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function closeFeature(Feature $feature)
     {
         $this->execShellCommand("git push -d origin {$feature->getName()}");
-        $feature->setStatus(Feature::STATUS_CLOSE);
+        $feature->setStatus(Feature::STATUS_CLOSED);
 
         return $feature;
     }

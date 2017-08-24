@@ -48,7 +48,7 @@ class FeatureCommandTest extends TestCase
 
         $feature = $command->getFeature();
         $this->assertEquals('feature-my-cool', $feature->getName());
-        $this->assertEquals(Feature::STATUS_CLOSE, $feature->getStatus());
+        $this->assertEquals(Feature::STATUS_CLOSED, $feature->getStatus());
     }
 
     public function testExecuteFeatureTest()

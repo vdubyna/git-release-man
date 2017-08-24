@@ -418,7 +418,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
              ->references()
              ->remove($username, $repository, "heads/{$feature->getName()}");
 
-        $feature->setStatus(Feature::STATUS_CLOSE);
+        $feature->setStatus(Feature::STATUS_CLOSED);
 
         return $feature;
     }

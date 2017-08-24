@@ -2,6 +2,7 @@
 
 namespace Mirocode\GitReleaseMan\Entity;
 
+use Mirocode\GitReleaseMan\ExitException;
 use Mirocode\GitReleaseMan\Version;
 
 class Release
@@ -9,31 +10,22 @@ class Release
     const STATUS_CLOSED = 'closed';
     const STATUS_STARTED = 'started';
     const STATUS_NEW = 'new';
-
     const TYPE_RELEASE_STABLE = 'stable';
     const TYPE_RELEASE_CANDIDATE = 'candidate';
 
-    /**
-     * @var string
-     */
     protected $version;
     protected $branch;
-
-    /**
-     * @var Feature[]
-     */
-    protected $features = array();
+    protected $features = [];
     protected $metadata;
     protected $status;
     protected $isStable;
 
-    public function __construct(Version $version, $branch, $isStable)
+    public function __construct(Version $version, $branch, $type)
     {
-        $this->version = (string)$version;
-        $this->branch  = (string)$branch;
-        //TODO Load the status from repository.
+        $this->version = $version->__toString();
+        $this->branch  = $branch;
         $this->setStatus(self::STATUS_NEW);
-        $this->isStable = $isStable;
+        $this->setType($type);
     }
 
     /**
@@ -89,6 +81,14 @@ class Release
     }
 
     /**
+     * @return mixed
+     */
+    public function getStatus()
+    {
+        return $this->status;
+    }
+
+    /**
      * @param mixed $status
      *
      * @return Release
@@ -101,15 +101,21 @@ class Release
     }
 
     /**
-     * @return mixed
+     * @param Release::TYPE_RELEASE_STABLE|Release::TYPE_RELEASE_CANDIDATE $type
+     *
+     * @throws ExitException
+     * @return $this
      */
-    public function getStatus()
+    protected function setType($type)
     {
-        return $this->status;
-    }
+        if (self::TYPE_RELEASE_STABLE === $type) {
+            $this->isStable = true;
+        } elseif (self::TYPE_RELEASE_STABLE === $type) {
+            $this->isStable = false;
+        } else {
+            throw new ExitException("Type {$type} is not valid");
+        }
 
-    public function isStable()
-    {
-        return $this->isStable;
+        return $this;
     }
 }

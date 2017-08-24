@@ -67,7 +67,11 @@ class BuildCommand extends Command
         }
 
         $releaseCandidateVersion = $this->getGitAdapter()->getReleaseCandidateVersion();
-        $releaseCandidate = new Release($releaseCandidateVersion, $releaseCandidateVersion->__toString(), false);
+        $releaseCandidate = new Release(
+            $releaseCandidateVersion,
+            $releaseCandidateVersion->__toString(),
+            Release::TYPE_RELEASE_CANDIDATE
+        );
         $releaseCandidate = $this->getGitAdapter()->startReleaseCandidate($releaseCandidate);
 
         foreach ($features as $feature) {
@@ -101,7 +105,11 @@ class BuildCommand extends Command
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
         $releaseStableVersion = $this->getGitAdapter()->getReleaseStableVersion();
-        $releaseStable = new Release($releaseStableVersion, $this->getConfiguration()->getMasterBranch(), true);
+        $releaseStable = new Release(
+            $releaseStableVersion,
+            $this->getConfiguration()->getMasterBranch(),
+            Release::TYPE_RELEASE_STABLE
+        );
 
         foreach ($features as $feature) {
             if (!$this->getGitAdapter()->isFeatureReadyForRelease($feature, $releaseStable)) {
