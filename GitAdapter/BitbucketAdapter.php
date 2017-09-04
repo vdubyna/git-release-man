@@ -89,11 +89,11 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
                 $labels = $this->getFeatureLabels($feature);
                 $feature->setLabels($labels);
 
-                if (in_array($this->getConfiguration()->getLabelForTest(), $feature->getLabels())) {
+                if (in_array($this->getConfiguration()->getLabelForReleaseCandidate(), $feature->getLabels())) {
                     $feature->setStatus(Feature::STATUS_RELEASE_CANDIDATE);
                 }
 
-                if (in_array($this->getConfiguration()->getLabelForRelease(), $feature->getLabels())) {
+                if (in_array($this->getConfiguration()->getLabelForReleaseStable(), $feature->getLabels())) {
                     $feature->setStatus(Feature::STATUS_RELEASE_STABLE);
                 }
             }

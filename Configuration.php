@@ -13,6 +13,8 @@ class Configuration
     protected $username;
     protected $gitAdapter;
     protected $token;
+    protected $releaseCandidateLabel;
+    protected $releaseStableLabel;
 
     const CONFIGURATION_FILENAME = '.git-release-man.yml';
 
@@ -45,6 +47,14 @@ class Configuration
                     $this->setToken($configuration['token']);
                 }
                 if (isset($configuration['repository'])) {
+                    $this->setRepository($configuration['repository']);
+                }
+
+                if (isset($configuration['release-candidate-label'])) {
+                    $this->setRepository($configuration['repository']);
+                }
+
+                if (isset($configuration['release-stable-label'])) {
                     $this->setRepository($configuration['repository']);
                 }
             }
@@ -87,14 +97,14 @@ class Configuration
         return $this->gitAdapter;
     }
 
-    public function getLabelForTest()
+    public function getLabelForReleaseCandidate()
     {
-        return 'IN-TEST';
+        return (empty($this->releaseCandidateLabel)) ? 'RELEASE-CANDIDATE' : $this->releaseCandidateLabel;
     }
 
-    public function getLabelForRelease()
+    public function getLabelForReleaseStable()
     {
-        return 'OK-PROD';
+        return (empty($this->releaseStableLabel)) ? 'RELEASE-STABLE' : $this->releaseStableLabel;
     }
 
     /**

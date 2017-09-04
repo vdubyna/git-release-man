@@ -99,7 +99,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      */
     public function markFeatureReadyForReleaseCandidate(Feature $feature)
     {
-        $label = $this->getConfiguration()->getLabelForTest();
+        $label = $this->getConfiguration()->getLabelForReleaseCandidate();
         if (!in_array($label, $feature->getLabels())) {
             $this->addLabelToFeature($feature, $label);
         }
@@ -115,7 +115,7 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
      */
     public function markFeatureReadyForReleaseStable(Feature $feature)
     {
-        $label = $this->getConfiguration()->getLabelForRelease();
+        $label = $this->getConfiguration()->getLabelForReleaseStable();
         if (!in_array($label, $feature->getLabels())) {
             $this->addLabelToFeature($feature, $label);
         }

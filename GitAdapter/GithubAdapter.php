@@ -457,11 +457,11 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
                 $feature->setLabels($this->getFeatureLabels($feature));
 
-                if (in_array($this->getConfiguration()->getLabelForTest(), $feature->getLabels())) {
+                if (in_array($this->getConfiguration()->getLabelForReleaseCandidate(), $feature->getLabels())) {
                     $feature->setStatus(Feature::STATUS_RELEASE_CANDIDATE);
                 }
 
-                if (in_array($this->getConfiguration()->getLabelForRelease(), $feature->getLabels())) {
+                if (in_array($this->getConfiguration()->getLabelForReleaseStable(), $feature->getLabels())) {
                     $feature->setStatus(Feature::STATUS_RELEASE_STABLE);
                 }
             }
@@ -499,8 +499,8 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             $client     = $this->getApiClient();
 
             $labels = array(
-                $this->getConfiguration()->getLabelForRelease(),
-                $this->getConfiguration()->getLabelForTest(),
+                $this->getConfiguration()->getLabelForReleaseStable(),
+                $this->getConfiguration()->getLabelForReleaseCandidate(),
             );
 
             foreach ($labels as $label) {

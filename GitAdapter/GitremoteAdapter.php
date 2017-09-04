@@ -38,13 +38,13 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
                     continue;
                 }
 
-                if (0 === strpos($tagName, $this->getConfiguration()->getLabelForTest())) {
-                    $feature->addLabel($this->getConfiguration()->getLabelForTest());
+                if (0 === strpos($tagName, $this->getConfiguration()->getLabelForReleaseCandidate())) {
+                    $feature->addLabel($this->getConfiguration()->getLabelForReleaseCandidate());
                     $feature->setStatus(Feature::STATUS_RELEASE_CANDIDATE);
                 }
 
-                if (0 === strpos($tagName, $this->getConfiguration()->getLabelForRelease())) {
-                    $feature->addLabel($this->getConfiguration()->getLabelForRelease());
+                if (0 === strpos($tagName, $this->getConfiguration()->getLabelForReleaseStable())) {
+                    $feature->addLabel($this->getConfiguration()->getLabelForReleaseStable());
                     $feature->setStatus(Feature::STATUS_RELEASE_STABLE);
                 }
             }
@@ -90,8 +90,8 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function removeLabelsFromFeature(Feature $feature)
     {
         $labels = [
-            $this->getConfiguration()->getLabelForTest(),
-            $this->getConfiguration()->getLabelForRelease()
+            $this->getConfiguration()->getLabelForReleaseCandidate(),
+            $this->getConfiguration()->getLabelForReleaseStable()
         ];
 
         foreach ($labels as $label) {
@@ -108,8 +108,8 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getFeatureLabels(Feature $feature)
     {
         return array_filter($this->getListOfRefsByType('tags'), function ($tagName) {
-            if ((0 === strpos($tagName, $this->getConfiguration()->getLabelForTest()))
-                || (0 === strpos($tagName, $this->getConfiguration()->getLabelForRelease()))
+            if ((0 === strpos($tagName, $this->getConfiguration()->getLabelForReleaseCandidate()))
+                || (0 === strpos($tagName, $this->getConfiguration()->getLabelForReleaseStable()))
             ) {
                 return true;
             } else {

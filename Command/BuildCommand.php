@@ -59,7 +59,7 @@ class BuildCommand extends Command
     public function releaseCandidateAction()
     {
         $this->confirmOrExit('Do you want to build Release Candidate for testing?');
-        $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()->getLabelForTest());
+        $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()->getLabelForReleaseCandidate());
 
         if (empty($features)) {
             $this->getStyleHelper()->error('There is no features ready for build.');
@@ -98,7 +98,7 @@ class BuildCommand extends Command
     public function releaseStableAction()
     {
         $this->confirmOrExit('Do you want to build Release for production?');
-        $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()->getLabelForRelease());
+        $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()->getLabelForReleaseStable());
 
         if (empty($features)) {
             $this->getStyleHelper()->error('There is no features ready for build.');
