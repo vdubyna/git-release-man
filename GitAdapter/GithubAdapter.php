@@ -273,8 +273,8 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             }
         }
 
-        $versions = array_merge($versionsTags, $versionsBranches);
-        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+        $versions = Semver::sort(array_merge($versionsTags, $versionsBranches));
+        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end($versions);
 
         return Version::fromString($version);
     }
