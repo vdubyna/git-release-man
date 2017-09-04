@@ -118,4 +118,9 @@ class Release
 
         return $this;
     }
+
+    public function isStable()
+    {
+        return $this->isStable;
+    }
 }
