@@ -58,9 +58,6 @@ class Configuration
                     $this->releaseStableLabel = $configuration['release-stable-label'];
                 }
             }
-
-            print_r($configuration);
-            print_r($this);
         } catch (ParseException $e) {
             throw new ExitException("Unable to parse the YAML string: {$e->getMessage()}");
         }
