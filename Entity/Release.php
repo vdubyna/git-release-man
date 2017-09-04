@@ -110,7 +110,7 @@ class Release
     {
         if (self::TYPE_RELEASE_STABLE === $type) {
             $this->isStable = true;
-        } elseif (self::TYPE_RELEASE_STABLE === $type) {
+        } elseif (self::TYPE_RELEASE_CANDIDATE === $type) {
             $this->isStable = false;
         } else {
             throw new ExitException("Type {$type} is not valid");
