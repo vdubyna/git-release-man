@@ -175,10 +175,16 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             );
         if (count($mergeRequests) === 1) {
             $mergeRequestInfo = $mergeRequests[0];
+            $mergeRequestInfo = $client->pullRequest()
+                ->show($username, $repository, $mergeRequestInfo['number']);
             $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
             $mergeRequest->setName($mergeRequestInfo['title'])
                          ->setUrl($mergeRequestInfo['html_url'])
-                         ->setDescription($mergeRequestInfo['body']);
+                         ->setDescription($mergeRequestInfo['body'])
+                         ->setIsMergeable($mergeRequestInfo['mergeable'])
+                         ->setCommit($mergeRequestInfo['merge_commit_sha'])
+                         ->setSourceBranch($mergeRequestInfo['head']['ref'])
+                         ->setTargetBranch($mergeRequestInfo['base']['ref']);
 
             return $mergeRequest;
         }
