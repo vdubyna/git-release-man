@@ -51,13 +51,16 @@ class Configuration
                 }
 
                 if (isset($configuration['release-candidate-label'])) {
-                    $this->setRepository($configuration['repository']);
+                    $this->releaseCandidateLabel = $configuration['release-candidate-label'];
                 }
 
                 if (isset($configuration['release-stable-label'])) {
-                    $this->setRepository($configuration['repository']);
+                    $this->releaseStableLabel = $configuration['release-stable-label'];
                 }
             }
+
+            print_r($configuration);
+            print_r($this);
         } catch (ParseException $e) {
             throw new ExitException("Unable to parse the YAML string: {$e->getMessage()}");
         }
