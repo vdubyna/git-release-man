@@ -96,7 +96,7 @@ final class Version
 
     public function getVersion()
     {
-        $version = '';
+        $version = $this->getVersionPrefix();
         $version .= "{$this->getMajor()}";
         $version .= ".{$this->getMinor()}";
         $version .= ".{$this->getPatch()}";
