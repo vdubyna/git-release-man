@@ -182,7 +182,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
                          ->setUrl($mergeRequestInfo['html_url'])
                          ->setDescription($mergeRequestInfo['body'])
                          ->setIsMergeable($mergeRequestInfo['mergeable'])
-                         ->setCommit($mergeRequestInfo['merge_commit_sha'])
+                         ->setCommit($mergeRequestInfo['head']['sha'])
                          ->setSourceBranch($mergeRequestInfo['head']['ref'])
                          ->setTargetBranch($mergeRequestInfo['base']['ref']);
 

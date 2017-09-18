@@ -120,6 +120,8 @@ class BuildCommand extends Command
         }
 
         foreach ($features as $feature) {
+            $this->getStyleHelper()->note("Feature {$feature->getMergeRequestNumber()} " .
+                "- {$feature->getName()} try merge into release {$releaseStable->getVersion()}");
             $this->getGitAdapter()->pushFeatureIntoReleaseStable($releaseStable, $feature);
             $this->getStyleHelper()->success("Feature {$feature->getMergeRequestNumber()} " .
                 "- {$feature->getName()} pushed into release {$releaseStable->getVersion()}");
