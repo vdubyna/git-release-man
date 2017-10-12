@@ -26,7 +26,7 @@ class BuildCommand extends Command
         $this->setName('git-release:build')
              ->addArgument('action', InputArgument::REQUIRED, 'Action')
              ->setDescription('Init git release man')
-             ->setHelp('Init git release man');
+             ->setHelp('Build actions: ' . implode(', ', array_keys($this->allowedActions)));
     }
 
     public function initAction()

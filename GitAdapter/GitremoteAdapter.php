@@ -125,7 +125,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function isFeatureStarted(Feature $feature)
     {
-        return !!$this->execShellCommand("git ls-remote --heads origin | grep {$feature->getName()}", false);
+        return !!$this->execShellCommand("git ls-remote --heads origin refs/heads/{$feature->getName()}", false);
     }
 
     /**

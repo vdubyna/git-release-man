@@ -28,6 +28,8 @@ class FeatureCommand extends Command
      */
     protected $feature;
 
+    protected $featureName;
+
     /**
      * @inheritdoc
      */
@@ -36,7 +38,7 @@ class FeatureCommand extends Command
         $this->setName('git-release:feature')
              ->addArgument('action', InputArgument::REQUIRED,
                  'Action [' . implode(', ', array_keys($this->allowedActions)) . ']')
-             ->addOption('name', 'n', InputOption::VALUE_REQUIRED, 'Feature Name')
+             ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Feature Name')
              ->setDescription('Feature git workflow tool')
              ->setHelp('Feature actions: ' . implode(', ', array_keys($this->allowedActions)));
         parent::configure();
@@ -44,8 +46,11 @@ class FeatureCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->feature = $this->getGitAdapter()
-                              ->buildFeature($input->getOption('name'));
+        if (!$input->hasOption('name')) {
+            throw new ExitException("Option name is not set. It is required and should start with prefix feature-");
+        } else {
+            $this->featureName = $input->getOption('name');
+        }
         parent::execute($input, $output);
     }
 
@@ -55,7 +60,7 @@ class FeatureCommand extends Command
 
         $this->getStyleHelper()->title('Feature Info');
         $this->getStyleHelper()
-             ->note("Feature {$feature->getName()} STATUS: {$feature->getStatus()}");
+             ->success("Feature \"{$feature->getName()}\" STATUS: {$feature->getStatus()}");
     }
 
     /**
@@ -101,7 +106,7 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Close feature \"{$feature->getName()}\".");
-        $this->getStyleHelper()->warning("Delete remote branch automatically close Merge Request");
+        $this->getStyleHelper()->warning("Delete remote branch automatically close Merge Request if it is open");
         $this->confirmOrExit("Do you want to continue this operation:");
 
         $feature = $this->getGitAdapter()->closeFeature($feature);
@@ -118,25 +123,27 @@ class FeatureCommand extends Command
     {
         $feature = $this->getFeature();
 
-        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for testing");
-        $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
+        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for release-candidate build");
+        $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" release-candidate:");
 
         if ($feature->getStatus() === Feature::STATUS_NEW) {
             $this->getStyleHelper()
-                 ->warning("Feature {$feature->getName()} should be started before go to test status.");
+                 ->warning("Feature {$feature->getName()} should be started before go to release-candidate status.");
         } elseif ($feature->getStatus() === Feature::STATUS_STARTED) {
             $this->getGitAdapter()
                  ->markFeatureReadyForReleaseCandidate($feature);
             $this->getStyleHelper()
-                 ->success("Feature marked for release candidate");
-            $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
+                 ->success("Feature marked ready for release-candidate build");
+            $this->getStyleHelper()->success(
+                "To move forward execute release-candidate build command: git-release:build release-candidate");
         } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_CANDIDATE) {
             $this->getStyleHelper()
-                 ->note("Feature {$feature->getName()} already marked ready for test.");
-            $this->getStyleHelper()->success("To move forward execute test command: git-release:build test");
+                 ->note("Feature {$feature->getName()} already marked ready for release-candidate build.");
+            $this->getStyleHelper()->success(
+                "To move forward execute release-candidate build command: git-release:build release-candidate");
         } else {
             $this->getStyleHelper()
-                 ->warning("Feature status: {$feature->getStatus()} not valid to go to test.");
+                 ->warning("Feature status: {$feature->getStatus()} not valid to go to release-candidate build.");
         }
     }
 
@@ -147,36 +154,50 @@ class FeatureCommand extends Command
     {
         $feature = $this->getFeature();
 
-        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for testing");
-        $this->confirmOrExit("Do you want to publish feature \"{$feature->getName()}\" for testing:");
+        $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for release-stable build");
+        $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" release-stable:");
 
         if ($feature->getStatus() === Feature::STATUS_NEW || $feature->getStatus() === Feature::STATUS_STARTED) {
             $this->getStyleHelper()
                  ->warning(
-                     "Feature {$feature->getName()} should be marked ready for test before go to release status."
+                     "Feature \"{$feature->getName()}\" should be marked \"release-candidate\" " .
+                     "before go to \"release-stable\" status."
                  );
         } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_CANDIDATE) {
             $this->getGitAdapter()
                  ->markFeatureReadyForReleaseStable($feature);
             $this->getStyleHelper()
-                 ->success("Feature {$feature->getName()} marked ready for release.");
+                 ->success("Feature {$feature->getName()} marked ready for release-stable build.");
             $this->getStyleHelper()
-                 ->success("To move forward execute test command: git-release:build release");
+                 ->success("To move forward execute release-stable build command: git-release:build release-stable");
         } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_STABLE) {
             $this->getStyleHelper()
-                 ->note("Feature {$feature->getName()} already marked ready for release.");
-            $this->getStyleHelper()->success("To move forward execute test command: git-release:build release");
+                 ->note("Feature {$feature->getName()} already marked ready for release-stable build.");
+            $this->getStyleHelper()->success(
+                "To move forward execute release-stable build command: git-release:build release-stable");
         } else {
             $this->getStyleHelper()
-                 ->warning("Feature status: {$feature->getStatus()} not valid to go to release.");
+                 ->warning("Feature status: {$feature->getStatus()} not valid to go to release-stable build.");
         }
     }
 
     /**
      * @return Feature
+     * @throws ExitException
      */
     public function getFeature()
     {
+        if (empty($this->feature)) {
+            $featureName = $this->featureName;
+            if (0 === strpos($featureName, 'feature-')) {
+                $this->feature = $this->getGitAdapter()->buildFeature($this->featureName);
+            } else {
+                throw new ExitException(
+                    "Feature name {$featureName} is not valid. It should start with feature- prefix"
+                );
+            }
+        }
+
         return $this->feature;
     }
 }

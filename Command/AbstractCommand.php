@@ -4,7 +4,6 @@ namespace Mirocode\GitReleaseMan\Command;
 
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
-use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
