@@ -2,11 +2,9 @@
 
 namespace Mirocode\GitReleaseMan\Entity;
 
-
 class MergeRequest
 {
     protected $number;
-
     protected $name;
     protected $url;
     protected $description;
@@ -83,18 +81,6 @@ class MergeRequest
     public function getDescription()
     {
         return $this->description;
-    }
-
-    /**
-     * @param mixed $number
-     *
-     * @return MergeRequest
-     */
-    public function setNumber($number)
-    {
-        $this->number = $number;
-
-        return $this;
     }
 
     /**
@@ -176,6 +162,4 @@ class MergeRequest
     {
         return $this->commit;
     }
-
-
 }

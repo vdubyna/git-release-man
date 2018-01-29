@@ -31,6 +31,7 @@ abstract class AbstractCommand extends Command
 
     /**
      * @return GitAdapterAbstract
+     * @throws ExitException
      */
     public function getGitAdapter()
     {
@@ -76,6 +77,13 @@ abstract class AbstractCommand extends Command
         parent::configure();
     }
 
+    /**
+     * @param InputInterface  $input
+     * @param OutputInterface $output
+     *
+     * @return int|null|void
+     * @throws ExitException
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->styleHelper = new SymfonyStyle($input, $output);

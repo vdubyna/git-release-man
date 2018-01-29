@@ -111,6 +111,8 @@ class Configuration
      * @param $username
      * @param $token
      * @param $repository
+     *
+     * @throws ExitException
      */
     public function initConfiguration($username, $token, $repository, $gitAdapter) {
         $array = array(
@@ -126,6 +128,7 @@ class Configuration
 
     /**
      * @return bool
+     * @throws ExitException
      */
     public function isConfigurationExists()
     {

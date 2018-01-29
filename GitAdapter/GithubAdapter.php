@@ -83,6 +83,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      * @param Release $release
      *
      * @return Release
+     * @throws \Github\Exception\MissingArgumentException
      */
     public function startReleaseCandidate(Release $release)
     {
@@ -123,7 +124,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
         $client->issues()
                ->labels()
-               ->add($username, $repository, $feature->getMergeRequestNumber(), $label);
+               ->add($username, $repository, $feature->getMergeRequest()->getNumber(), $label);
         $feature->addLabel($label);
 
         return $feature;
@@ -142,7 +143,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         $labels = $this->getApiClient()
             ->issues()
             ->labels()
-            ->all($username, $repository, $feature->getMergeRequestNumber());
+            ->all($username, $repository, $feature->getMergeRequest()->getNumber());
 
         return array_map(function ($label) {
             return $label['name'];
@@ -204,8 +205,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-        $mergeRequest = $client
-            ->pullRequest()
+        $mergeRequest = $client->pullRequest()
             ->create($username, $repository, array(
                 'base'  => $masterBranch,
                 'head'  => "{$username}:{$feature->getName()}",
@@ -240,9 +240,9 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function markFeatureReadyForReleaseCandidate(Feature $feature)
     {
-        if (!$feature->getMergeRequestNumber()) {
+        if (!$feature->getMergeRequest()) {
             $mergeRequest = $this->openMergeRequestByFeature($feature);
-            $feature->setMergeRequestNumber($mergeRequest->getNumber());
+            $feature->setMergeRequest($mergeRequest);
         }
 
         return parent::markFeatureReadyForReleaseCandidate($feature);
@@ -312,7 +312,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         $client->pullRequest()->merge(
             $username,
             $repository,
-            $feature->getMergeRequestNumber(),
+            $feature->getMergeRequest()->getNumber(),
             "Add feature {$feature->getName()}",
             $feature->getMergeRequest()->getCommit(),
             'squash'
@@ -458,8 +458,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             $mergeRequest = $this->getMergeRequestByFeature($feature);
 
             if ($mergeRequest && $mergeRequest->getNumber()) {
-                $feature->setMergeRequestNumber($mergeRequest->getNumber())
-                    ->setMergeRequest($mergeRequest);
+                $feature->setMergeRequest($mergeRequest);
 
                 $feature->setLabels($this->getFeatureLabels($feature));
 
@@ -499,7 +498,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function removeLabelsFromFeature(Feature $feature)
     {
-        if ($feature->getMergeRequestNumber()) {
+        if ($feature->getMergeRequest()) {
             $repository = $this->getConfiguration()->getRepository();
             $username   = $this->getConfiguration()->getUsername();
             $client     = $this->getApiClient();
@@ -512,7 +511,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             foreach ($labels as $label) {
                 $client->issues()
                        ->labels()
-                       ->remove($username, $repository, $feature->getMergeRequestNumber(), $label);
+                       ->remove($username, $repository, $feature->getMergeRequest()->getNumber(), $label);
             }
         }
     }

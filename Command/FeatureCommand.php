@@ -44,6 +44,13 @@ class FeatureCommand extends Command
         parent::configure();
     }
 
+    /**
+     * @param InputInterface  $input
+     * @param OutputInterface $output
+     *
+     * @return int|null|void
+     * @throws ExitException
+     */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         if (!$input->hasOption('name')) {
@@ -54,6 +61,9 @@ class FeatureCommand extends Command
         parent::execute($input, $output);
     }
 
+    /**
+     * @throws ExitException
+     */
     public function infoAction()
     {
         $feature = $this->getFeature();
@@ -66,6 +76,7 @@ class FeatureCommand extends Command
     /**
      * We always start new features from Master branch
      * Master branch can be configured
+     * @throws ExitException
      */
     public function startAction()
     {
@@ -100,6 +111,7 @@ class FeatureCommand extends Command
 
     /**
      * Removes feature branch from GitService
+     * @throws ExitException
      */
     public function closeAction()
     {
@@ -118,6 +130,7 @@ class FeatureCommand extends Command
 
     /**
      * Open Pull Request to make feature available for QA testing
+     * @throws ExitException
      */
     public function releaseCandidateAction()
     {
@@ -149,6 +162,7 @@ class FeatureCommand extends Command
 
     /**
      * Mark Merge Request ready to go to production
+     * @throws ExitException
      */
     public function releaseStableAction()
     {

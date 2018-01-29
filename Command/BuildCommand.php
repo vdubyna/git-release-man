@@ -83,7 +83,7 @@ class BuildCommand extends Command
 
         foreach ($features as $feature) {
             $this->getGitAdapter()->pushFeatureIntoReleaseCandidate($releaseCandidate, $feature);
-            $this->getStyleHelper()->success("Feature {$feature->getMergeRequestNumber()} " .
+            $this->getStyleHelper()->success("Feature {$feature->getMergeRequest()->getNumber()} " .
                 "- {$feature->getName()} pushed into release {$releaseCandidate->getVersion()}");
         }
 
@@ -120,10 +120,10 @@ class BuildCommand extends Command
         }
 
         foreach ($features as $feature) {
-            $this->getStyleHelper()->note("Feature {$feature->getMergeRequestNumber()} " .
+            $this->getStyleHelper()->note("Feature {$feature->getMergeRequest()->getNumber()} " .
                 "- {$feature->getName()} try merge into release {$releaseStable->getVersion()}");
             $this->getGitAdapter()->pushFeatureIntoReleaseStable($releaseStable, $feature);
-            $this->getStyleHelper()->success("Feature {$feature->getMergeRequestNumber()} " .
+            $this->getStyleHelper()->success("Feature {$feature->getMergeRequest()->getNumber()} " .
                 "- {$feature->getName()} pushed into release {$releaseStable->getVersion()}");
         }
 
@@ -143,7 +143,7 @@ class BuildCommand extends Command
         $headers  = array('Feature Name', 'Labels', 'Merge Request');
 
         $rows = array_map(function (Feature $feature) {
-            if (empty($feature->getMergeRequestNumber())) {
+            if (empty($feature->getMergeRequest())) {
                 $mergeRequestMessage = "There is no open MergeRequest";
             } else {
                 $mergeRequest = $feature->getMergeRequest();

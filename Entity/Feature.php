@@ -4,17 +4,16 @@ namespace Mirocode\GitReleaseMan\Entity;
 
 class Feature
 {
-    const STATUS_NEW = 'new';
-    const STATUS_STARTED = 'started';
-    const STATUS_CLOSED = 'closed';
+    const STATUS_NEW               = 'new';
+    const STATUS_STARTED           = 'started';
+    const STATUS_CLOSED            = 'closed';
     const STATUS_RELEASE_CANDIDATE = 'release-candidate';
-    const STATUS_RELEASE_STABLE = 'release-stable';
+    const STATUS_RELEASE_STABLE    = 'release-stable';
 
     protected $name;
     protected $status;
     protected $commit;
     protected $labels = [];
-    protected $mergeRequestNumber;
     protected $mergeRequest;
 
     /**
@@ -101,26 +100,6 @@ class Feature
     public function addLabel($label)
     {
         $this->labels[] = $label;
-    }
-
-    /**
-     * @return string
-     */
-    public function getMergeRequestNumber()
-    {
-        return $this->mergeRequestNumber;
-    }
-
-    /**
-     * @param integer $mergeRequestNumber
-     *
-     * @return Feature
-     */
-    public function setMergeRequestNumber($mergeRequestNumber)
-    {
-        $this->mergeRequestNumber = $mergeRequestNumber;
-
-        return $this;
     }
 
     /**

@@ -7,10 +7,10 @@ use Mirocode\GitReleaseMan\Version;
 
 class Release
 {
-    const STATUS_CLOSED = 'closed';
-    const STATUS_STARTED = 'started';
-    const STATUS_NEW = 'new';
-    const TYPE_RELEASE_STABLE = 'stable';
+    const STATUS_NEW             = 'new';
+    const STATUS_STARTED         = 'started';
+    const STATUS_CLOSED          = 'closed';
+    const TYPE_RELEASE_STABLE    = 'stable';
     const TYPE_RELEASE_CANDIDATE = 'candidate';
 
     protected $version;
@@ -106,7 +106,7 @@ class Release
      * @throws ExitException
      * @return $this
      */
-    protected function setType($type)
+    public function setType($type)
     {
         if (self::TYPE_RELEASE_STABLE === $type) {
             $this->isStable = true;
