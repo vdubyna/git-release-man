@@ -112,7 +112,7 @@ abstract class AbstractCommand extends Command
             try {
                 $this->$methodName($input, $output);
             } catch (ExitException $e) {
-                $output->write($e->getMessage());
+                $output->writeln($e->getMessage());
             }
         }
     }

@@ -118,13 +118,13 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Close feature \"{$feature->getName()}\".");
-        $this->getStyleHelper()->warning("Delete remote branch automatically close Merge Request if it is open");
+        $this->getStyleHelper()->warning("Delete branch will automatically close Merge Request if it exists/open");
         $this->confirmOrExit("Do you want to continue this operation:");
 
         $feature = $this->getGitAdapter()->closeFeature($feature);
 
         if ($feature->getStatus() === Feature::STATUS_CLOSED) {
-            $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" removed from remote repository.");
+            $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" closed and branch is deleted.");
         }
     }
 

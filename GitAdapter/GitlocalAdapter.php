@@ -223,6 +223,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $features = $this->execShellCommand('git branch --list "feature-*"');
 
         return array_map(function ($featureName) {
+            $featureName = trim(str_replace('*', '', $featureName));
             return $this->buildFeature($featureName);
         }, array_filter(explode("\n", $features)));
     }
