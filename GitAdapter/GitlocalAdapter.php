@@ -220,7 +220,8 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeaturesList()
     {
-        $features = $this->execShellCommand('git branch --list "feature-*"');
+        $featurePrefix = $this->getConfiguration()->getFeaturePrefix();
+        $features      = $this->execShellCommand('git branch --list "' . $featurePrefix . '*"');
 
         return array_map(function ($featureName) {
             $featureName = trim(str_replace('*', '', $featureName));

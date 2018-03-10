@@ -20,6 +20,15 @@ class Release
     protected $status;
     protected $isStable;
 
+    /**
+     * Release constructor.
+     *
+     * @param Version $version
+     * @param         $branch
+     * @param         $type
+     *
+     * @throws ExitException
+     */
     public function __construct(Version $version, $branch, $type)
     {
         $this->version = $version->__toString();

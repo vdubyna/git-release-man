@@ -39,7 +39,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
         }, $branches);
 
         $features = array_filter($features, function (Feature $feature) {
-            return (strpos($feature->getName(), 'feature') === 0);
+            return (strpos($feature->getName(), $this->getConfiguration()->getFeaturePrefix()) === 0);
         });
 
         return $features;

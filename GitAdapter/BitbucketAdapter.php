@@ -41,7 +41,7 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         }, $branchesInfo);
 
         $features = array_filter($branchesNames, function ($branch) {
-            return (strpos($branch, 'feature') === 0);
+            return (strpos($branch, $this->getConfiguration()->getFeaturePrefix()) === 0);
         });
 
         $features = array_map(function ($branch) {

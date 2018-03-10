@@ -15,8 +15,10 @@ class Configuration
     protected $token;
     protected $releaseCandidateLabel;
     protected $releaseStableLabel;
+    protected $featurePrefix;
 
     const CONFIGURATION_FILENAME = '.git-release-man.yml';
+    const DEFAULT_FEATURE_PREFIX = 'feature-';
 
     const DEFAULT_VERSION = '1.0.0';
 
@@ -56,6 +58,10 @@ class Configuration
 
                 if (isset($configuration['release-stable-label'])) {
                     $this->releaseStableLabel = $configuration['release-stable-label'];
+                }
+
+                if (isset($configuration['feature-prefix'])) {
+                    $this->featurePrefix = $configuration['feature-prefix'];
                 }
             }
         } catch (ParseException $e) {
@@ -107,6 +113,11 @@ class Configuration
         return (empty($this->releaseStableLabel)) ? 'RELEASE-STABLE' : $this->releaseStableLabel;
     }
 
+    public function getFeaturePrefix()
+    {
+        return (empty($this->featurePrefix)) ? self::DEFAULT_FEATURE_PREFIX : $this->featurePrefix;
+    }
+
     /**
      * @param $username
      * @param $token
@@ -122,7 +133,7 @@ class Configuration
             "repository" => $repository,
         );
 
-        $yaml = Yaml::dump($array);
+        $yaml = Yaml::dump(array_filter($array));
         file_put_contents($this->getConfigurationPath(), $yaml);
     }
 

@@ -2,6 +2,7 @@
 
 namespace Mirocode\GitReleaseMan\Command;
 
+use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -49,13 +50,16 @@ class FeatureCommand extends Command
      * @param InputInterface  $input
      * @param OutputInterface $output
      *
-     * @return int|null|void
+     * @return void
      * @throws ExitException
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         if (!$input->hasOption('name')) {
-            throw new ExitException("Option name is not set. It is required and should start with prefix feature-");
+            throw new ExitException(
+                "Option name is not set. It is required and should start with prefix "
+                . $this->getConfiguration()->getFeaturePrefix()
+            );
         } else {
             $this->featureName = $input->getOption('name');
         }
@@ -222,11 +226,12 @@ class FeatureCommand extends Command
     {
         if (empty($this->feature)) {
             $featureName = $this->featureName;
-            if (0 === strpos($featureName, 'feature-')) {
+            if (0 === strpos($featureName, $this->getConfiguration()->getFeaturePrefix())) {
                 $this->feature = $this->getGitAdapter()->buildFeature($this->featureName);
             } else {
                 throw new ExitException(
-                    "Feature name {$featureName} is not valid. It should start with feature- prefix"
+                    "Feature name {$featureName} is not valid. It should start with prefix "
+                    . $this->getConfiguration()->getFeaturePrefix()
                 );
             }
         }
