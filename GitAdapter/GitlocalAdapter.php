@@ -351,7 +351,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
             return $process->getOutput();
         } catch (ProcessFailedException $e) {
-            if (empty($defaultValue)) {
+            if ($defaultValue === null) {
                 throw new ExitException($e);
             }
 
