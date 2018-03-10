@@ -17,6 +17,7 @@ class FeatureCommand extends Command
      */
     protected $allowedActions = array(
         'start'             => 'startAction',
+        'reset'             => 'resetAction',
         'close'             => 'closeAction',
         'release-candidate' => 'releaseCandidateAction',
         'release-stable'    => 'releaseStableAction',
@@ -99,8 +100,11 @@ class FeatureCommand extends Command
         } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_CANDIDATE
             || $feature->getStatus() === Feature::STATUS_RELEASE_STABLE
         ) {
-            $this->confirmOrExit("Do you want to re-start this feature:");
-            $this->getGitAdapter()->markFeatureAsNew($feature);
+            $this->getStyleHelper()
+                 ->success(
+                     "Feature {$feature->getName()} already exists on {$this->getConfiguration()->getGitAdapter()}. " .
+                     "Status is {$feature->getStatus()}"
+                 );
         } else {
             $this->getStyleHelper()
                  ->warning(
@@ -126,6 +130,21 @@ class FeatureCommand extends Command
         if ($feature->getStatus() === Feature::STATUS_CLOSED) {
             $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" closed and branch is deleted.");
         }
+    }
+
+    /**
+     * Removes feature branch from GitService
+     * @throws ExitException
+     */
+    public function resetAction()
+    {
+        $feature = $this->getFeature();
+
+        $this->getStyleHelper()->title("Reset feature \"{$feature->getName()}\".");
+        $this->confirmOrExit("Do you want to continue this operation:");
+
+        $this->getGitAdapter()->markFeatureAsNew($feature);
+        $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" was reset.");
     }
 
     /**
