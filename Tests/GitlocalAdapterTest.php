@@ -51,4 +51,22 @@ OUTPUT
         }
     }
 
+    public function testBuildFeature()
+    {
+        $styleHelper = $this->getMockBuilder(StyleInterface::class)->getMock();
+        $configuration = $this->getMockBuilder(Configuration::class)->getMock();
+        $configuration->method('getFeaturePrefix')
+                      ->willReturn('feature-');
+
+        $gitLocalAdapter = $this->getMockBuilder(GitlocalAdapter::class)
+                                ->setConstructorArgs([$configuration, $styleHelper])
+                                ->getMock();
+
+        $feature = $gitLocalAdapter->buildFeature('feature-ASD');
+
+        $this->assertInstanceOf('Mirocode\GitReleaseMan\Entity\Feature', $feature);
+        $this->assertEquals('feature-ASD', $feature->getName());
+
+    }
+
 }

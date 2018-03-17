@@ -75,11 +75,11 @@ class Feature
     }
 
     /**
-     * @param mixed $labels
+     * @param array $labels
      *
      * @return Feature
      */
-    public function setLabels($labels)
+    public function setLabels(array $labels)
     {
         $this->labels = $labels;
 

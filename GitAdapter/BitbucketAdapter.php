@@ -13,8 +13,9 @@ use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Version;
+use GuzzleHttp;
 
-class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
+class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface, GitServiceInterface
 {
     protected $apiClient;
 
@@ -29,7 +30,7 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
         $branchesApi = $this->getApiClient()->api('Repositories\Refs\Branches');
 
-        $branches = json_decode($branchesApi->all($username, $repository)->getContent(), true);
+        $branches = GuzzleHttp\json_decode($branchesApi->all($username, $repository)->getContent(), true);
         $branchesInfo = $branches['values'];
 
         if (empty($branchesInfo)) {
@@ -67,7 +68,7 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
             /** @var \Bitbucket\API\Repositories\Refs\Branches $branches */
             $branches = $this->getApiClient()->api('Repositories\Refs\Branches');
             $featureInfo = $branches->get($username, $repository, $featureName);
-            $featureInfo = json_decode($featureInfo->getContent(), true);
+            $featureInfo = GuzzleHttp\json_decode($featureInfo->getContent(), true);
         } catch (\Exception $e) { // TODO Verify right exception
             $featureInfo = [];
         }
@@ -83,8 +84,7 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
             $mergeRequest = $this->getMergeRequestByFeature($feature);
 
             if ($mergeRequest && $mergeRequest->getNumber()) {
-                $feature->setMergeRequestNumber($mergeRequest->getNumber())
-                        ->setMergeRequest($mergeRequest);
+                $feature->setMergeRequest($mergeRequest);
 
                 $labels = $this->getFeatureLabels($feature);
                 $feature->setLabels($labels);
@@ -102,11 +102,6 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         return $feature;
     }
 
-    public function removeReleaseCandidates($release)
-    {
-        // TODO: Implement removeReleaseCandidates() method.
-    }
-
     public function addLabelToFeature(Feature $feature, $label)
     {
         $username = $this->getConfiguration()->getUsername();
@@ -115,9 +110,12 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
 
-        $mergeRequestsApi->update($username, $repository, $feature->getMergeRequestNumber(), [
-            'title'       => "{{$label}} " . $feature->getMergeRequest()->getName(),
-            'destination' => ['branch' => ['name' => $feature->getMergeRequest()->getTargetBranch()]]
+        /** @var MergeRequest $featureMergeRequest */
+        $featureMergeRequest = $feature->getMergeRequest();
+
+        $mergeRequestsApi->update($username, $repository, $featureMergeRequest->getNumber(), [
+            'title'       => "{{$label}} " . $featureMergeRequest->getName(),
+            'destination' => ['branch' => ['name' => $featureMergeRequest->getTargetBranch()]]
         ]);
 
         $feature->addLabel($label);
@@ -125,7 +123,28 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
 
     public function removeLabelsFromFeature(Feature $feature)
     {
-        // TODO: Implement removeLabelsFromFeature() method.
+        $username = $this->getConfiguration()->getUsername();
+        $repository = $this->getConfiguration()->getRepository();
+
+        /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
+
+        $labels = [
+            $this->getConfiguration()->getLabelForReleaseCandidate(),
+            $this->getConfiguration()->getLabelForReleaseStable(),
+        ];
+
+        array_walk($labels, function($label) use ($feature) {
+            $name = str_replace("{{$label}}", '', $feature->getMergeRequest()->getName());
+            $feature->getMergeRequest()->setName(trim($name));
+        });
+
+        $mergeRequestsApi->update($username, $repository, $feature->getMergeRequest()->getNumber(), [
+            'title'       => $feature->getMergeRequest()->getName(),
+            'destination' => ['branch' => ['name' => $feature->getMergeRequest()->getTargetBranch()]]
+        ]);
+
+        $feature->setLabels([]);
     }
 
     /**
@@ -140,26 +159,20 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         $repository   = $this->getConfiguration()->getRepository();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-
-
         $bitbucketApi = new \Bitbucket\API\Api(['base_url' => 'https://api.bitbucket.org/rest/api']);
         $bitbucketApi->getClient()->addListener(
             new \Bitbucket\API\Http\Listener\BasicAuthListener($username, $token)
         );
         /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
         $branchesApi = $bitbucketApi->api('Repositories\Refs\Branches');
-        $masterBranchInfo = json_decode($branchesApi->get($username, $repository, $masterBranch)->getContent(), true);
+        $masterBranchInfo = GuzzleHttp\json_decode($branchesApi->get($username, $repository, $masterBranch)->getContent(), true);
 
         $branchCreated = $branchesApi->create(
             $username,
             $repository,
-            [
-                'name' => $release->getVersion(),
-                'startPoint' => $masterBranchInfo['target']['hash'],
-                'message' => 'create new release',
-            ]
+            $release->getVersion(),
+            $masterBranchInfo['target']['hash']
         );
-        print_r($branchCreated);
 
         $release->setStatus(Release::STATUS_STARTED);
 
@@ -216,8 +229,7 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
         $mergeRequests = $mergeRequestsApi->all($username, $repository, ['state' => 'OPEN'])->getContent();
-        $mergeRequests = json_decode($mergeRequests, true);
-
+        $mergeRequests = GuzzleHttp\json_decode($mergeRequests, true);
 
         foreach ($mergeRequests['values'] as $mergeRequestInfo) {
             if ($mergeRequestInfo['source']['branch']['name'] === $feature->getName()
@@ -246,6 +258,8 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
                     ->setDescription($mergeRequestInfo['description'])
                     ->setIsMergeable($isMergeable);
 
+                print_r($mergeRequest);
+
                 return $mergeRequest;
             }
         }
@@ -255,11 +269,70 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
     /**
      * @param Feature $feature
      *
+     * @return Feature
+     */
+    public function markFeatureReadyForReleaseCandidate(Feature $feature)
+    {
+        if (!$feature->getMergeRequest()) {
+            $mergeRequest = $this->openMergeRequestByFeature($feature);
+            $feature->setMergeRequest($mergeRequest);
+        }
+
+        return parent::markFeatureReadyForReleaseCandidate($feature);
+    }
+
+    /**
+     * @param Feature $feature
+     *
      * @return MergeRequest
      */
     public function openMergeRequestByFeature(Feature $feature)
     {
-        // TODO: Implement openMergeRequestByFeature() method.
+        $username     = $this->getConfiguration()->getUsername();
+        $repository   = $this->getConfiguration()->getRepository();
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+
+        /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
+
+        $mergeRequestInfo = $mergeRequestsApi->create($username, $repository, array(
+            'title'         => ucfirst(str_replace('_', ' ', $feature->getName())),
+            'source'        => array(
+                'branch'    => array(
+                    'name'  => $feature->getName()
+                ),
+                'repository' => array(
+                    'full_name' => "{$username}/{$repository}"
+                )
+            ),
+            'destination'   => array(
+                'branch'    => array(
+                    'name'  => $masterBranch
+                )
+            )
+        ))->getContent();
+
+        $mergeRequestInfo = GuzzleHttp\json_decode($mergeRequestInfo, true);
+
+        $pullRequestCommits = $mergeRequestsApi->commits($username, $repository, $mergeRequestInfo['id'])->getContent();
+        $pullRequestCommits = GuzzleHttp\json_decode($pullRequestCommits, true);
+
+        $pullRequestDescription = array_reduce($pullRequestCommits['values'], function ($message, $commit) {
+            return $message . '* ' . $commit['message'] . PHP_EOL;
+        }, '');
+
+        $mergeRequestsApi->update(
+            $username,
+            $repository,
+            $mergeRequestInfo['id'],
+            [
+                'title' => $mergeRequestInfo['title'],
+                'description' => $pullRequestDescription,
+                'destination' => ['branch' => ['name' => $masterBranch]],
+            ]
+        );
+
+        return new MergeRequest($mergeRequestInfo['id']);
     }
 
     public function getLatestReleaseStableTag()
@@ -325,7 +398,7 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         $versionsTags = array();
         /** @var \Bitbucket\API\Repositories\Refs\Tags $tagsApi */
         $tagsApi = $client->api('Repositories\Refs\Tags');
-        $tags = json_decode($tagsApi->all($username, $repository)->getContent(), true);
+        $tags = GuzzleHttp\json_decode($tagsApi->all($username, $repository)->getContent(), true);
 
         foreach ($tags['values'] as $tagInfo) {
             try {
@@ -340,7 +413,7 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         $versionsBranches = array();
         /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
         $branchesApi = $client->api('Repositories\Refs\Branches');
-        $branches = json_decode($branchesApi->all($username, $repository)->getContent(), true);
+        $branches = GuzzleHttp\json_decode($branchesApi->all($username, $repository)->getContent(), true);
 
         foreach ($branches['values'] as $branchInfo) {
             try {
@@ -355,5 +428,26 @@ class BitbucketAdapter extends GitremoteAdapter implements GitAdapterInterface
         $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
 
         return Version::fromString($version);
+    }
+
+    /**
+     * @param Release $release
+     *
+     * @return void
+     */
+    public function removeReleaseCandidates(Release $release)
+    {
+        // TODO: Implement removeReleaseCandidates() method.
+    }
+
+    /**
+     * @param Feature $feature
+     * @param Release $release
+     *
+     * @return bool
+     */
+    public function isFeatureReadyForRelease(Feature $feature, Release $release)
+    {
+        // TODO: Implement isFeatureReadyForRelease() method.
     }
 }

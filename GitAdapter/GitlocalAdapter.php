@@ -131,6 +131,25 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
+     * @param Feature $feature
+     * @param Release $release
+     *
+     * @return bool
+     * @throws ExitException
+     */
+    public function isFeatureReadyForRelease(Feature $feature, Release $release)
+    {
+        try {
+            $this->execShellCommand("git checkout {$release->getBranch()} && git merge {$feature->getName()}");
+            $this->execShellCommand("git reset --hard ORIG_HEAD");
+            return true;
+        } catch (ExitException $e) {
+            $this->execShellCommand("git merge --abort");
+            return false;
+        }
+    }
+
+    /**
      * @return Version
      */
     protected function getLatestVersion()
@@ -315,25 +334,6 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     {
         $this->execShellCommand("git merge {$feature->getName()}");
         $release->addFeature($feature);
-    }
-
-    /**
-     * @param Feature $feature
-     * @param Release $release
-     *
-     * @return bool
-     * @throws ExitException
-     */
-    public function isFeatureReadyForRelease(Feature $feature, Release $release)
-    {
-        try {
-            $this->execShellCommand("git checkout {$release->getBranch()} && git merge {$feature->getName()}");
-            $this->execShellCommand("git reset --hard ORIG_HEAD");
-            return true;
-        } catch (ExitException $e) {
-            $this->execShellCommand("git merge --abort");
-            return false;
-        }
     }
 
     /**
