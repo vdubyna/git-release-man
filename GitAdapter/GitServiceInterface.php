@@ -29,4 +29,10 @@ interface GitServiceInterface
      */
     public function openMergeRequestByFeature(Feature $feature);
 
+    /**
+     * @param integer $mergeRequestId
+     *
+     * @return MergeRequest
+     */
+    public function buildMergeRequest($mergeRequestId);
 }

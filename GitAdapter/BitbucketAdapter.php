@@ -326,7 +326,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
             ]
         );
 
-        return new MergeRequest($mergeRequestInfo['id']);
+        return $this->buildMergeRequest($mergeRequestInfo['id']);
     }
 
     public function getLatestReleaseStableTag()
@@ -370,6 +370,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $branchInfo = GuzzleHttp\json_decode(
             $branchesApi->get($username, $repository, $feature->getName())->getContent(), true);
 
+        echo "TODO FIXME " . __LINE__ . ' ' . __FILE__ . PHP_EOL;
 
         $feature->setStatus(Feature::STATUS_STARTED)
                 ->setCommit(123);
@@ -470,6 +471,47 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function isFeatureReadyForRelease(Feature $feature, Release $release)
     {
-        // TODO: Implement isFeatureReadyForRelease() method.
+        return $feature->getMergeRequest()->getIsMergeable();
+    }
+
+    /**
+     * @param integer $mergeRequestId
+     *
+     * @return MergeRequest
+     */
+    public function buildMergeRequest($mergeRequestId)
+    {
+        $username     = $this->getConfiguration()->getUsername();
+        $repository   = $this->getConfiguration()->getRepository();
+
+        /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
+        $mergeRequestInfo = GuzzleHttp\json_decode(
+            $mergeRequestsApi->get($username, $repository, $mergeRequestId)->getContent(), true);
+
+        $diff = $mergeRequestsApi->diff($username, $repository,  $mergeRequestInfo['id'])->getContent();
+        $diffFiles = explode("diff --git ", $diff);
+
+        // Dirty hack to detect if pull request is mergeable
+        $isMergeable = true;
+        foreach ($diffFiles as $diffFile) {
+            if (strpos($diffFile, '<<<<<<< destination') !== false
+                && strpos($diffFile, '>>>>>>> source') !== false
+            ) {
+                $isMergeable = false;
+                break;
+            }
+        }
+
+        $mergeRequest = new MergeRequest($mergeRequestInfo['id']);
+        $mergeRequest->setName($mergeRequestInfo['title'])
+                     ->setCommit($mergeRequestInfo['source']['commit']['hash'])
+                     ->setSourceBranch($mergeRequestInfo['source']['branch']['name'])
+                     ->setUrl($mergeRequestInfo['links']['html']['href'])
+                     ->setTargetBranch($mergeRequestInfo['destination']['branch']['name'])
+                     ->setDescription($mergeRequestInfo['description'])
+                     ->setIsMergeable($isMergeable);
+
+        return $mergeRequest;
     }
 }

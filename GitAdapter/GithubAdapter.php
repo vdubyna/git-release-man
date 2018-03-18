@@ -198,6 +198,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      * @param $feature
      *
      * @return MergeRequest
+     * @throws \Github\Exception\MissingArgumentException
      */
     public function openMergeRequestByFeature(Feature $feature)
     {
@@ -231,7 +232,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             array('body' => $pullRequestDescription)
         );
 
-        return new MergeRequest($mergeRequestInfo['number']);
+        return $this->buildMergeRequest($mergeRequestInfo['number']);
     }
 
     /**
@@ -533,4 +534,29 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         }
     }
 
+    /**
+     * @param integer $mergeRequestId
+     *
+     * @return MergeRequest
+     */
+    public function buildMergeRequest($mergeRequestId)
+    {
+        $repository   = $this->getConfiguration()->getRepository();
+        $username     = $this->getConfiguration()->getUsername();
+
+        $mergeRequestInfo = $this->getApiClient()
+            ->pullRequest()
+            ->show($username, $repository, $mergeRequestId);
+
+        $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
+        $mergeRequest->setName($mergeRequestInfo['title'])
+                     ->setUrl($mergeRequestInfo['html_url'])
+                     ->setDescription($mergeRequestInfo['body'])
+                     ->setIsMergeable($mergeRequestInfo['mergeable'])
+                     ->setCommit($mergeRequestInfo['head']['sha'])
+                     ->setSourceBranch($mergeRequestInfo['head']['ref'])
+                     ->setTargetBranch($mergeRequestInfo['base']['ref']);
+
+        return $mergeRequest;
+    }
 }
