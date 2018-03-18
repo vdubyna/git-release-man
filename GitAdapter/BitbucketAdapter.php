@@ -9,6 +9,7 @@ use Bitbucket\API\Api as Client;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\Entity\Release;
+use Mirocode\GitReleaseMan\ExitException;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface;
 use Mirocode\GitReleaseMan\Configuration;
@@ -67,15 +68,14 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         try {
             /** @var \Bitbucket\API\Repositories\Refs\Branches $branches */
             $branches = $this->getApiClient()->api('Repositories\Refs\Branches');
-            $featureInfo = $branches->get($username, $repository, $featureName);
-            $featureInfo = GuzzleHttp\json_decode($featureInfo->getContent(), true);
+            $featureInfo = $branches->get($username, $repository, $featureName)->getContent();
+            $featureInfo = GuzzleHttp\json_decode($featureInfo, true);
         } catch (\Exception $e) { // TODO Verify right exception
             $featureInfo = [];
         }
-
         $feature = new Feature($featureName);
 
-        if (empty($featureInfo)) {
+        if (empty($featureInfo) || !isset($featureInfo['target'])) {
             $feature->setStatus(Feature::STATUS_NEW);
         } else {
             $feature->setStatus(Feature::STATUS_STARTED)
@@ -155,19 +155,15 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function startReleaseCandidate(Release $release)
     {
         $username     = $this->getConfiguration()->getUsername();
-        $token        = $this->getConfiguration()->getToken();
         $repository   = $this->getConfiguration()->getRepository();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-        $bitbucketApi = new \Bitbucket\API\Api(['base_url' => 'https://api.bitbucket.org/rest/api']);
-        $bitbucketApi->getClient()->addListener(
-            new \Bitbucket\API\Http\Listener\BasicAuthListener($username, $token)
-        );
+        $bitbucketApi = $this->getApiClient();
         /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
         $branchesApi = $bitbucketApi->api('Repositories\Refs\Branches');
         $masterBranchInfo = GuzzleHttp\json_decode($branchesApi->get($username, $repository, $masterBranch)->getContent(), true);
 
-        $branchCreated = $branchesApi->create(
+        $branchesApi->create(
             $username,
             $repository,
             $release->getVersion(),
@@ -258,8 +254,6 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
                     ->setDescription($mergeRequestInfo['description'])
                     ->setIsMergeable($isMergeable);
 
-                print_r($mergeRequest);
-
                 return $mergeRequest;
             }
         }
@@ -349,10 +343,38 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      * @param Feature $feature
      *
      * @return Feature
+     * @throws ExitException
      */
     public function startFeature(Feature $feature)
     {
-        // TODO: Implement startFeature() method.
+        if ($feature->getStatus() !== Feature::STATUS_NEW) {
+            throw new ExitException("You can start feature only if it has status: NEW.");
+        }
+
+        $username     = $this->getConfiguration()->getUsername();
+        $repository   = $this->getConfiguration()->getRepository();
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+
+        /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
+        $branchesApi = $this->getApiClient()->api('Repositories\Refs\Branches');
+        $masterBranchInfo = GuzzleHttp\json_decode(
+            $branchesApi->get($username, $repository, $masterBranch)->getContent(), true);
+
+        $branchesApi->create(
+            $username,
+            $repository,
+            $feature->getName(),
+            $masterBranchInfo['target']['hash']
+        );
+
+        $branchInfo = GuzzleHttp\json_decode(
+            $branchesApi->get($username, $repository, $feature->getName())->getContent(), true);
+
+
+        $feature->setStatus(Feature::STATUS_STARTED)
+                ->setCommit(123);
+
+        return $feature;
     }
 
     /**

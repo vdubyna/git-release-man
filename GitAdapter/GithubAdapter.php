@@ -50,6 +50,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      *
      * @return Feature
      * @throws ExitException
+     * @throws \Github\Exception\MissingArgumentException
      */
     public function startFeature(Feature $feature)
     {
