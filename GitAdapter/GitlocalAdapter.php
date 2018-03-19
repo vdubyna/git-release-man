@@ -198,8 +198,8 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function startReleaseCandidate(Release $release)
     {
-        // todo base branch
-        $cmd = "git checkout -B master && git checkout -B {$release->getBranch()}";
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+        $cmd = "git checkout -B {$masterBranch} && git checkout -B {$release->getBranch()}";
         $this->execShellCommand($cmd);
         $release->setStatus(Release::STATUS_STARTED);
 
@@ -302,7 +302,8 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
             throw new ExitException("Feature already exists");
         }
 
-        $this->execShellCommand("git checkout master && git checkout -B {$feature->getName()}");
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+        $this->execShellCommand("git checkout {$masterBranch} && git checkout -B {$feature->getName()}");
         $branchCommit = $this->execShellCommand("git log -1 --pretty=format:\"%H\" {$feature->getName()}");
 
         $feature->setStatus(Feature::STATUS_STARTED)

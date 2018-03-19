@@ -16,6 +16,7 @@ class Configuration
     protected $releaseCandidateLabel;
     protected $releaseStableLabel;
     protected $featurePrefix;
+    protected $masterBranch;
 
     const CONFIGURATION_FILENAME = '.git-release-man.yml';
     const DEFAULT_FEATURE_PREFIX = 'feature-';
@@ -60,6 +61,10 @@ class Configuration
                     $this->releaseStableLabel = $configuration['release-stable-label'];
                 }
 
+                if (isset($configuration['master-branch'])) {
+                    $this->releaseStableLabel = $configuration['master-branch'];
+                }
+
                 if (isset($configuration['feature-prefix'])) {
                     $this->featurePrefix = $configuration['feature-prefix'];
                 }
@@ -71,7 +76,6 @@ class Configuration
 
     /**
      * @return string
-     * @throws \Mirocode\GitReleaseMan\ExitException
      */
     public function getConfigurationPath()
     {
@@ -80,7 +84,7 @@ class Configuration
 
     public function getMasterBranch()
     {
-        return 'master';
+        return (empty($this->masterBranch)) ? 'master' : $this->masterBranch;
     }
 
     public function getRepository()
@@ -123,15 +127,21 @@ class Configuration
      * @param $token
      * @param $repository
      *
-     * @throws ExitException
+     * @param $gitAdapter
      */
     public function initConfiguration($username, $token, $repository, $gitAdapter) {
         $array = array(
-            "gitadapter" => $gitAdapter,
-            "username"   => $username,
-            "token"      => $token,
-            "repository" => $repository,
+            "gitadapter"              => $gitAdapter,
+            "master-branch"           => $this->getMasterBranch(),
+            "feature-prefix"          => $this->getFeaturePrefix(),
+            "release-candidate-label" => $this->getLabelForReleaseCandidate(),
+            "release-stable-label"    => $this->getLabelForReleaseStable(),
         );
+
+        $verifyArguments = [$username, $token, $repository];
+        array_walk($verifyArguments, function($key) use ($array) {
+            return (!$key) ?: array_push($array, $key);
+        });
 
         $yaml = Yaml::dump(array_filter($array));
         file_put_contents($this->getConfigurationPath(), $yaml);

@@ -122,6 +122,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      * @param Feature $feature
      *
      * @return bool
+     * @throws ExitException
      */
     public function isFeatureStarted(Feature $feature)
     {
@@ -156,6 +157,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      * @param $versionType
      *
      * @return array
+     * @throws ExitException
      */
     protected function getListOfRefsByType($versionType)
     {
@@ -176,7 +178,8 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function startReleaseCandidate(Release $release)
     {
-        $cmd = "git fetch origin && git checkout -B master " .
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+        $cmd = "git fetch origin && git checkout -B {$masterBranch} " .
             "&& git checkout -B {$release->getBranch()} && git push origin {$release->getBranch()}";
         $this->execShellCommand($cmd);
         $release->setStatus(Release::STATUS_STARTED);
@@ -279,7 +282,9 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
             throw new ExitException("Feature already exists");
         }
 
-        $this->execShellCommand("git checkout master && git checkout -B {$feature->getName()}");
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+
+        $this->execShellCommand("git checkout {$masterBranch} && git checkout -B {$feature->getName()}");
         $this->execShellCommand("git push origin {$feature->getName()}");
         $branchCommit = $this->execShellCommand("git log -1 --pretty=format:\"%H\" origin/{$feature->getName()}");
 
@@ -293,6 +298,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      * @param Release $release
      *
      * @return Release
+     * @throws ExitException
      */
     public function createReleaseTag(Release $release)
     {
