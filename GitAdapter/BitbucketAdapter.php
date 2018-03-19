@@ -518,10 +518,8 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $branchInfo = GuzzleHttp\json_decode(
             $branchesApi->get($username, $repository, $feature->getName())->getContent(), true);
 
-        echo "TODO FIXME " . __LINE__ . ' ' . __FILE__ . PHP_EOL;
-
         $feature->setStatus(Feature::STATUS_STARTED)
-                ->setCommit(123);
+                ->setCommit($branchInfo['target']['hash']);
 
         return $feature;
     }
