@@ -8,6 +8,7 @@ use Gitlab\Api\Projects;
 use Gitlab\Api\Repositories;
 use Gitlab\Client;
 use Gitlab\Exception\RuntimeException as GitlabRuntimeException;
+use Gitlab\ResultPager;
 use InvalidArgumentException;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
@@ -31,7 +32,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     public function getFeaturesList()
     {
         $repository   = $this->getConfiguration()->getRepository();
-        $pager = new \Gitlab\ResultPager($this->getApiClient());
+        $pager = new ResultPager($this->getApiClient());
 
         /** @var Repositories $repository */
         $repositoryApi = $this->getApiClient()->api('repositories');
@@ -217,13 +218,17 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     protected function getLatestVersion()
     {
-        $username   = $this->getConfiguration()->getUsername();
         $repository = $this->getConfiguration()->getRepository();
-        $client     = $this->getApiClient();
+
+        $pager = new ResultPager($this->getApiClient());
+
+        /** @var Repositories $repository */
+        $repositoryApi = $this->getApiClient()->api('repositories');
+        $tags = $pager->fetchall($repositoryApi, 'tags', [$repository]);
 
         // get Tags
-        $versionsTags = array();
-        foreach ($client->repository()->tags($username, $repository) as $tag) {
+        $versionsTags = [];
+        foreach ($tags as $tag) {
             try {
                 Version::fromString($tag['name']);
                 array_push($versionsTags, $tag['name']);
@@ -232,9 +237,10 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             }
         }
 
+        $branches = $pager->fetchall($repositoryApi, 'branches', [$repository]);
         // get Branches
-        $versionsBranches = array();
-        foreach ($client->repository()->branches($username, $repository) as $branch) {
+        $versionsBranches = [];
+        foreach ($branches as $branch) {
             try {
                 Version::fromString($branch['name']);
                 array_push($versionsBranches, $branch['name']);
@@ -250,16 +256,34 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     }
 
     /**
+     * There is no possibility to merge branches directly, so we use Merge request to push feature into release
+     *
      * @param Release $release
      * @param Feature $feature
      *
      */
     public function pushFeatureIntoReleaseCandidate(Release $release, Feature $feature)
     {
-        $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
-        $client->repository()->merge($username, $repository, $release->getVersion(), $feature->getName());
+
+        // We need project id becase of the API issue https://gitlab.com/gitlab-org/gitlab-ce/issues/41675
+        /** @var Projects $projectsApi */
+        $projectsApi = $this->getApiClient()->api('projects');
+        $projectInfo = $projectsApi->show($repository);
+
+        /** @var MergeRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+        $mergeRequest = $mergeRequestsApi
+            ->create(
+                $repository,
+                $feature->getName(),
+                $release->getBranch(),
+                $feature->getName() . ' Release: ' . $release->getVersion(),
+                null,
+                $projectInfo['id']
+            );
+        $mergeRequestsApi->merge($projectInfo['id'], $mergeRequest['iid']);
+
         $release->addFeature($feature);
     }
 
@@ -269,18 +293,17 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function pushFeatureIntoReleaseStable(Release $release, Feature $feature)
     {
-        $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
 
-        $client->pullRequest()->merge(
-            $username,
-            $repository,
-            $feature->getMergeRequest()->getNumber(),
-            "Add feature {$feature->getName()}",
-            $feature->getMergeRequest()->getCommit(),
-            'squash'
-        );
+        // We need project id becase of the API issue https://gitlab.com/gitlab-org/gitlab-ce/issues/41675
+        /** @var Projects $projectsApi */
+        $projectsApi = $this->getApiClient()->api('projects');
+        $projectInfo = $projectsApi->show($repository);
+
+        /** @var MergeRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+        $mergeRequestsApi->merge($projectInfo['id'], $feature->getMergeRequest()->getNumber());
+
         $release->addFeature($feature);
     }
 
@@ -302,23 +325,11 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function createReleaseTag(Release $release)
     {
-        $client            = $this->getApiClient();
         $repository        = $this->getConfiguration()->getRepository();
-        $username          = $this->getConfiguration()->getUsername();
 
-        $releaseBranchInfo = $client
-            ->repository()
-            ->branches($username, $repository, $release->getBranch());
-        $client->repository()
-               ->releases()
-               ->create($username, $repository,
-                   array(
-                       'tag_name'         => $release->getVersion(),
-                       'name'             => $release->getVersion(),
-                       'prerelease'       => (!$release->isStable()),
-                       'target_commitish' => $releaseBranchInfo['commit']['sha'],
-                   )
-               );
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
+        $repositoryApi->createTag($repository, $release->getVersion(), $release->getBranch());
 
         return $release;
     }
@@ -330,11 +341,14 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function getRCBranchesListByRelease(Release $release)
     {
-        $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
 
-        $branches = $client->repository()->branches($username, $repository);
+        $pager = new ResultPager($this->getApiClient());
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
+
+        $branches = $pager->fetchall($repositoryApi, 'branches', [$repository]);
+
         $branches = array_map(function ($branch) {
             return $branch['name'];
         }, $branches);
@@ -344,33 +358,69 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         });
     }
 
+    /**
+     * @return string
+     * @throws ExitException
+     */
     public function getLatestReleaseStableTag()
     {
-        $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
+        $pager = new ResultPager($this->getApiClient());
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
 
-        $latestRelease = $client->repository()->releases()->latest($username, $repository);
+        $versionsTags = array_map(function ($branch) {
+            return $branch['name'];
+        }, $pager->fetchall($repositoryApi, 'tags', [$repository]));
 
-        return $latestRelease['tag_name'];
-    }
-
-    public function getLatestReleaseCandidateTag()
-    {
-        $client     = $this->getApiClient();
-        $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
-
-        $latestTestReleases = $client->repository()
-                                     ->releases()
-                                     ->all($username, $repository);
-        $latestTestReleases = array_filter($latestTestReleases, function ($testRelease) {
-            return ($testRelease['prerelease'] == true);
+        $versionsTags = array_filter($versionsTags, function($version) {
+            try {
+                return Version::fromString($version)->isStable();
+            } catch (InvalidArgumentException $e) {
+                return false;
+            }
         });
 
-        $latestTestRelease = array_shift($latestTestReleases);
+        if (empty($versionsTags)) {
+            throw new ExitException("There is no any stable release tag");
+        }
 
-        return $latestTestRelease['tag_name'];
+        return end($versionsTags);
+    }
+
+    /**
+     * @return string
+     * @throws ExitException
+     */
+    public function getLatestReleaseCandidateTag()
+    {
+        $repository = $this->getConfiguration()->getRepository();
+        $pager = new ResultPager($this->getApiClient());
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
+
+        $versionsTags = array_map(function ($branch) {
+            return $branch['name'];
+        }, $pager->fetchall($repositoryApi, 'tags', [$repository]));
+
+        $versionsTags = array_filter($versionsTags, function($version) {
+            try {
+                return Version::fromString($version)->isStable();
+            } catch (InvalidArgumentException $e) {
+                return false;
+            }
+        });
+
+        if (empty($versionsTags)) {
+            throw new ExitException("There is no any release candidate tag");
+        }
+
+        $latestReleaseCandidateTag = end($versionsTags);
+        if (Version::fromString($latestReleaseCandidateTag)->isStable()) {
+            throw new ExitException("Latest tag {$latestReleaseCandidateTag} is Stable. Generate RC.");
+        }
+
+        return $latestReleaseCandidateTag;
     }
 
     /**

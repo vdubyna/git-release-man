@@ -396,6 +396,10 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $this->buildMergeRequest($mergeRequestInfo['id']);
     }
 
+    /**
+     * @return string
+     * @throws ExitException
+     */
     public function getLatestReleaseStableTag()
     {
         $username     = $this->getConfiguration()->getUsername();
@@ -425,6 +429,10 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $versionsTags = array_filter($versionsTags, function($version) {
             return Version::fromString($version)->isStable();
         });
+
+        if (empty($versionsTags)) {
+            throw new ExitException("There is no any stable release tag");
+        }
 
         $versions = Semver::sort($versionsTags);
         $version  = end($versions);
@@ -458,10 +466,19 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
             $page->fetchNext();
         } while(isset($tags['next']));
 
-        $versions = Semver::sort($versionsTags);
-        $version  = end($versions);
+        if (empty($versionsTags)) {
+            throw new ExitException("There is no any release candidate tag");
+        }
 
-        return Version::fromString($version)->getVersion();
+        $versions = Semver::sort($versionsTags);
+        $latestReleaseCandidateTag  = end($versions);
+
+        if (Version::fromString($latestReleaseCandidateTag)->isStable()) {
+            throw new ExitException("Latest tag {$latestReleaseCandidateTag} is Stable. Generate RC.");
+        }
+
+        return $latestReleaseCandidateTag;
+
     }
 
     /**
