@@ -4,6 +4,7 @@ namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Composer\Semver\Semver;
 use Gitlab\Api\MergeRequests;
+use Gitlab\Api\Projects;
 use Gitlab\Api\Repositories;
 use Gitlab\Client;
 use Gitlab\Exception\RuntimeException as GitlabRuntimeException;
@@ -23,7 +24,6 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      * @var Client
      */
     protected $apiClient;
-
 
     /**
      * @return Feature[]
@@ -80,22 +80,12 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function startReleaseCandidate(Release $release)
     {
-        $username     = $this->getConfiguration()->getUsername();
         $repository   = $this->getConfiguration()->getRepository();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-        $masterBranchInfo = $this->getApiClient()
-                                 ->gitData()
-                                 ->references()
-                                 ->show($username, $repository, "heads/{$masterBranch}");
-
-        $this->getApiClient()
-             ->gitData()
-             ->references()
-             ->create($username, $repository, array(
-                 'ref' => "refs/heads/{$release->getBranch()}",
-                 'sha' => $masterBranchInfo['object']['sha'],
-             ));
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
+        $repositoryApi->createBranch($repository, $release->getBranch(), $masterBranch);
 
         $release->setStatus(Release::STATUS_STARTED);
 
@@ -111,13 +101,14 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function addLabelToFeature(Feature $feature, $label)
     {
-        $client     = $this->getApiClient();
         $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
 
-        $client->issues()
-               ->labels()
-               ->add($username, $repository, $feature->getMergeRequest()->getNumber(), $label);
+        /** @var MergeRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+        $mergeRequestsApi
+            ->update($repository, $feature->getMergeRequest()->getNumber(),
+                ['labels' => implode(',', $feature->getLabels()) . $label]);
+
         $feature->addLabel($label);
 
         return $feature;
@@ -130,10 +121,8 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function getFeatureLabels(Feature $feature)
     {
-
         if ($feature->getMergeRequest()->getNumber()) {
             $repository   = $this->getConfiguration()->getRepository();
-            $username     = $this->getConfiguration()->getUsername();
             $masterBranch = $this->getConfiguration()->getMasterBranch();
 
             /** @var MergeRequests $mergeRequestsApi */
@@ -145,8 +134,8 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             ]);
 
             return array_map(function ($label) {
-                return $label['name'];
-            }, $mergeRequests[0]['labels']);
+                    return $label['name'];
+                }, $mergeRequests[0]['labels']);
         }
 
         return [];
@@ -171,7 +160,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             ]);
 
         if (count($mergeRequests) === 1) {
-            return $this->buildMergeRequest($mergeRequests[0]['id']);
+            return $this->buildMergeRequest($mergeRequests[0]['iid']);
         }
 
         return null;
@@ -187,20 +176,25 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         $repository   = $this->getConfiguration()->getRepository();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
+        // We need project id becase of the API issue https://gitlab.com/gitlab-org/gitlab-ce/issues/41675
+        /** @var Projects $projectsApi */
+        $projectsApi = $this->getApiClient()->api('projects');
+        $projectInfo = $projectsApi->show($repository);
+
         /** @var MergeRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
         $mergeRequest = $mergeRequestsApi
-            ->create($repository, $feature->getName(), $masterBranch, $feature->getName());
+            ->create($repository, $feature->getName(), $masterBranch, $feature->getName(), null, $projectInfo['id']);
 
-        $mergeRequestCommits = $mergeRequestsApi->commits($repository, $mergeRequest['id']);
+        $mergeRequestCommits = $mergeRequestsApi->commits($projectInfo['id'], $mergeRequest['iid']);
 
         $mergeRequestDescription = array_reduce($mergeRequestCommits, function ($message, $commit) {
             return $message . '* ' . $commit['message'] . ' | ' . $commit['message'] . PHP_EOL;
         }, '');
 
-        $mergeRequestsApi->update($repository, $mergeRequest['id'], ['description' => $mergeRequestDescription]);
+        $mergeRequestsApi->update($repository, $mergeRequest['iid'], ['description' => $mergeRequestDescription]);
 
-        return $this->buildMergeRequest($mergeRequest['id']);
+        return $this->buildMergeRequest($mergeRequest['iid']);
     }
 
     /**
@@ -508,13 +502,12 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     public function buildMergeRequest($mergeRequestId)
     {
         $repository   = $this->getConfiguration()->getRepository();
-        $username     = $this->getConfiguration()->getUsername();
 
         /** @var MergeRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
         $mergeRequestInfo = $mergeRequestsApi->show($repository, $mergeRequestId);
 
-        $mergeRequest = new MergeRequest($mergeRequestInfo['id']);
+        $mergeRequest = new MergeRequest($mergeRequestInfo['iid']);
         $mergeRequest->setName($mergeRequestInfo['title'])
                      ->setUrl($mergeRequestInfo['web_url'])
                      ->setDescription($mergeRequestInfo['description'])
