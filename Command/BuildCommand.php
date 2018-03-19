@@ -29,6 +29,9 @@ class BuildCommand extends Command
              ->setHelp('Build actions: ' . implode(', ', array_keys($this->allowedActions)));
     }
 
+    /**
+     * @throws ExitException
+     */
     public function initAction()
     {
         $confirmationMassage = ($this->getConfiguration()->isConfigurationExists())
@@ -56,6 +59,9 @@ class BuildCommand extends Command
         $this->getConfiguration()->initConfiguration($username, $token, $repositoryName, $gitAdapter);
     }
 
+    /**
+     * @throws ExitException
+     */
     public function releaseCandidateAction()
     {
         $this->confirmOrExit('Do you want to build Release Candidate for testing?');
@@ -95,6 +101,9 @@ class BuildCommand extends Command
 
     }
 
+    /**
+     * @throws ExitException
+     */
     public function releaseStableAction()
     {
         $this->confirmOrExit('Do you want to build Release for production?');
@@ -136,6 +145,7 @@ class BuildCommand extends Command
 
     /**
      * List available features
+     * @throws ExitException
      */
     public function featuresListAction()
     {
@@ -162,13 +172,19 @@ class BuildCommand extends Command
         $this->getStyleHelper()->table($headers, $rows);
     }
 
+    /**
+     * @throws ExitException
+     */
     public function latestReleaseStableAction()
     {
         $latestReleaseTag = $this->getGitAdapter()->getLatestReleaseStableTag();
         $this->getStyleHelper()->write($latestReleaseTag);
     }
 
-    public function latestReleaseCandidateAcition()
+    /**
+     * @throws ExitException
+     */
+    public function latestReleaseCandidateAction()
     {
         $latestTestReleaseTag = $this->getGitAdapter()->getLatestReleaseCandidateTag();
         $this->getStyleHelper()->write($latestTestReleaseTag);

@@ -3,6 +3,7 @@
 namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Bitbucket\API\Http\Listener\BasicAuthListener;
+use Bitbucket\API\Http\Response\Pager;
 use Composer\Semver\Semver;
 use InvalidArgumentException;
 use Bitbucket\API\Api as Client;
@@ -16,6 +17,14 @@ use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Version;
 use GuzzleHttp;
 
+/**
+ * Documentation https://gentlero.bitbucket.io/bitbucket-api/1.0/examples/#available-examples
+ * API https://developer.atlassian.com/bitbucket/api/2/reference/resource/
+ *
+ *
+ * Class BitbucketAdapter
+ * @package Mirocode\GitReleaseMan\GitAdapter
+ */
 class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface, GitServiceInterface
 {
     protected $apiClient;
@@ -177,28 +186,93 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
     public function pushFeatureIntoReleaseStable(Release $release, Feature $feature)
     {
-        // TODO: Implement pushFeatureIntoRelease() method.
+        $repository = $this->getConfiguration()->getRepository();
+        $username   = $this->getConfiguration()->getUsername();
+
+        /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
+        $result = $mergeRequestsApi->accept(
+            $username, $repository, $feature->getMergeRequest()->getNumber())->getContent();
+        $result = GuzzleHttp\json_decode($result, true);
+
+        print_r($result);
+
+        $release->addFeature($feature);
     }
 
     /**
      * @param Release $release
+     *
+     * @param string  $metadata
      *
      * @return Release
      */
     public function createReleaseTag(Release $release, $metadata = '')
     {
-        // TODO: Implement createReleaseTag() method.
+        $repository = $this->getConfiguration()->getRepository();
+        $username   = $this->getConfiguration()->getUsername();
+
+        /** @var \Bitbucket\API\Repositories\Refs\Tags $tagsApi */
+        $client  = $this->getApiClient();
+        $tagsApi = $client->api('Repositories\Refs\Tags');
+
+        /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
+        $branchesApi = $this->getApiClient()->api('Repositories\Refs\Branches');
+        $releaseBranchInfo = GuzzleHttp\json_decode(
+            $branchesApi->get($username, $repository, $release->getBranch())->getContent(), true);
+
+        $tagsApi->create($username, $repository, $release->getVersion(), $releaseBranchInfo['target']['hash']);
+
+        return $release;
     }
 
     /**
+     * Open Merge request to release-candidate and merge it
+     *
      * @param Release $release
      * @param Feature $feature
      *
      * @return void
+     * @throws ExitException
      */
     public function pushFeatureIntoReleaseCandidate(Release $release, Feature $feature)
     {
-        // TODO: Implement pushFeatureIntoReleaseCandidate() method.
+        $repository = $this->getConfiguration()->getRepository();
+        $username   = $this->getConfiguration()->getUsername();
+
+        /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
+
+        $mergeRequestInfo = $mergeRequestsApi->create($username, $repository, array(
+            'title'         => ucfirst(str_replace('_', ' ', $feature->getName())),
+            'source'        => array(
+                'branch'    => array(
+                    'name'  => $feature->getName()
+                ),
+                'repository' => array(
+                    'full_name' => "{$username}/{$repository}"
+                )
+            ),
+            'destination'   => array(
+                'branch'    => array(
+                    'name'  => $release->getBranch()
+                )
+            )
+        ))->getContent();
+
+        $mergeRequestInfo = GuzzleHttp\json_decode($mergeRequestInfo, true);
+        $result = $mergeRequestsApi
+            ->accept($username, $repository, $mergeRequestInfo['id'], ['message' => 'Merge feature'])
+            ->getContent();
+        $result = GuzzleHttp\json_decode($result, true);
+
+        if (isset($result['type']) && $result['type'] === 'error') {
+            $mergeRequestsApi->decline($username, $repository, $mergeRequestInfo['id']);
+            throw new ExitException(
+                "Feature {$feature->getName()} can not be merged into Release {$release->getVersion()}");
+        }
+
+        $release->addFeature($feature);
     }
 
     /**
@@ -208,7 +282,13 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function closeFeature(Feature $feature)
     {
-        // TODO: Implement closeFeature() method.
+        $this->getStyleHelper()
+             ->note("This fieature is not supported by API see thread " .
+                 "https://bitbucket.org/site/master/issues/12295/add-support-to-create-delete-branch-via");
+
+        $feature->setStatus(Feature::STATUS_CLOSED);
+
+        return $feature;
     }
 
     /**
@@ -331,12 +411,70 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
     public function getLatestReleaseStableTag()
     {
-        // TODO: Implement getLatestReleaseTag() method.
+        $username     = $this->getConfiguration()->getUsername();
+        $repository   = $this->getConfiguration()->getRepository();
+
+        $versionsTags = array();
+        /** @var \Bitbucket\API\Repositories\Refs\Tags $tagsApi */
+        $tagsApi = $this->getApiClient()->api('Repositories\Refs\Tags');
+
+        $page = new Pager(
+            $tagsApi->getClient(), $tagsApi->all($username, $repository));
+        do {
+            $tags = GuzzleHttp\json_decode($page->getCurrent()->getContent(), 1);
+
+            foreach ($tags['values'] as $tagInfo) {
+                try {
+                    Version::fromString($tagInfo['name']);
+                    array_push($versionsTags, $tagInfo['name']);
+                } catch (InvalidArgumentException $e) {
+                    continue;
+                }
+            }
+
+            $page->fetchNext();
+        } while(isset($tags['next']));
+
+        $versionsTags = array_filter($versionsTags, function($version) {
+            return Version::fromString($version)->isStable();
+        });
+
+        $versions = Semver::sort($versionsTags);
+        $version  = end($versions);
+
+        return Version::fromString($version)->getVersion();
     }
 
     public function getLatestReleaseCandidateTag()
     {
-        // TODO: Implement getLatestTestReleaseTag() method.
+        $username     = $this->getConfiguration()->getUsername();
+        $repository   = $this->getConfiguration()->getRepository();
+
+        $versionsTags = array();
+        /** @var \Bitbucket\API\Repositories\Refs\Tags $tagsApi */
+        $tagsApi = $this->getApiClient()->api('Repositories\Refs\Tags');
+
+        $page = new Pager(
+            $tagsApi->getClient(), $tagsApi->all($username, $repository));
+        do {
+            $tags = GuzzleHttp\json_decode($page->getCurrent()->getContent(), 1);
+
+            foreach ($tags['values'] as $tagInfo) {
+                try {
+                    Version::fromString($tagInfo['name']);
+                    array_push($versionsTags, $tagInfo['name']);
+                } catch (InvalidArgumentException $e) {
+                    continue;
+                }
+            }
+
+            $page->fetchNext();
+        } while(isset($tags['next']));
+
+        $versions = Semver::sort($versionsTags);
+        $version  = end($versions);
+
+        return Version::fromString($version)->getVersion();
     }
 
     /**
@@ -421,34 +559,48 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $versionsTags = array();
         /** @var \Bitbucket\API\Repositories\Refs\Tags $tagsApi */
         $tagsApi = $client->api('Repositories\Refs\Tags');
-        $tags = GuzzleHttp\json_decode($tagsApi->all($username, $repository)->getContent(), true);
 
-        foreach ($tags['values'] as $tagInfo) {
-            try {
-                Version::fromString($tagInfo['name']);
-                array_push($versionsBranches, $tagInfo['name']);
-            } catch (InvalidArgumentException $e) {
-                continue;
+        $page = new Pager(
+            $tagsApi->getClient(), $tagsApi->all($username, $repository));
+        do {
+            $tags = GuzzleHttp\json_decode($page->getCurrent()->getContent(), 1);
+
+            foreach ($tags['values'] as $tagInfo) {
+                try {
+                    Version::fromString($tagInfo['name']);
+                    array_push($versionsTags, $tagInfo['name']);
+                } catch (InvalidArgumentException $e) {
+                    continue;
+                }
             }
-        }
+
+            $page->fetchNext();
+        } while(isset($tags['next']));
 
         // get Branches
         $versionsBranches = array();
         /** @var \Bitbucket\API\Repositories\Refs\Branches $branchesApi */
         $branchesApi = $client->api('Repositories\Refs\Branches');
-        $branches = GuzzleHttp\json_decode($branchesApi->all($username, $repository)->getContent(), true);
 
-        foreach ($branches['values'] as $branchInfo) {
-            try {
-                Version::fromString($branchInfo['name']);
-                array_push($versionsBranches, $branchInfo['name']);
-            } catch (InvalidArgumentException $e) {
-                continue;
+        $page = new Pager(
+            $branchesApi->getClient(), $branchesApi->all($username, $repository));
+        do {
+            $branches = GuzzleHttp\json_decode($page->getCurrent()->getContent(), 1);
+
+            foreach ($branches['values'] as $branchInfo) {
+                try {
+                    Version::fromString($branchInfo['name']);
+                    array_push($versionsBranches, $branchInfo['name']);
+                } catch (InvalidArgumentException $e) {
+                    continue;
+                }
             }
-        }
 
-        $versions = array_merge($versionsTags, $versionsBranches);
-        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+            $page->fetchNext();
+        } while(isset($branches['next']));
+
+        $versions = Semver::sort(array_merge($versionsTags, $versionsBranches));
+        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end($versions);
 
         return Version::fromString($version);
     }
@@ -460,7 +612,9 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function removeReleaseCandidates(Release $release)
     {
-        // TODO: Implement removeReleaseCandidates() method.
+        $this->getStyleHelper()
+             ->note("This fieature is not supported by API see thread " .
+                 "https://bitbucket.org/site/master/issues/12295/add-support-to-create-delete-branch-via");
     }
 
     /**
