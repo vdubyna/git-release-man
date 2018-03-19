@@ -544,7 +544,6 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
-     * TODO move to abstract
      *
      * @param Feature $feature
      *
