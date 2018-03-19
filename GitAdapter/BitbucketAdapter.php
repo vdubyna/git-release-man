@@ -184,6 +184,12 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $release;
     }
 
+    /**
+     * @param Release $release
+     * @param Feature $feature
+     *
+     * @throws ExitException
+     */
     public function pushFeatureIntoReleaseStable(Release $release, Feature $feature)
     {
         $repository = $this->getConfiguration()->getRepository();
@@ -192,10 +198,14 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         /** @var \Bitbucket\API\Repositories\PullRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
         $result = $mergeRequestsApi->accept(
-            $username, $repository, $feature->getMergeRequest()->getNumber())->getContent();
+            $username, $repository, $feature->getMergeRequest()->getNumber(), ['message' => 'Merge Pull Request'])->getContent();
         $result = GuzzleHttp\json_decode($result, true);
 
-        print_r($result);
+        if (isset($result['type']) && $result['type'] === 'error') {
+            $mergeRequestsApi->decline($username, $repository, $feature->getMergeRequest()->getNumber());
+            throw new ExitException(
+                "Feature {$feature->getName()} can not be merged into Release {$release->getVersion()}");
+        }
 
         $release->addFeature($feature);
     }
@@ -283,7 +293,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function closeFeature(Feature $feature)
     {
         $this->getStyleHelper()
-             ->note("This fieature is not supported by API see thread " .
+             ->note("This action 'closeFeature' is not supported by API see thread " .
                  "https://bitbucket.org/site/master/issues/12295/add-support-to-create-delete-branch-via");
 
         $feature->setStatus(Feature::STATUS_CLOSED);
@@ -535,18 +545,27 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         return $this->apiClient;
     }
 
+    /**
+     * TODO move to abstract
+     *
+     * @param Feature $feature
+     *
+     * @return array
+     */
     public function getFeatureLabels(Feature $feature)
     {
         if ($feature->getMergeRequest()) {
-            preg_match('/(\{[A-Z-]*\})/', $feature->getMergeRequest()->getName(), $matches);
-            $labels = array_map(function ($label) {
-                return str_replace(['{', '}'], '', $label);
-            }, $matches);
+            preg_match_all('/\{[A-Z-]*\}/', $feature->getMergeRequest()->getName(), $matches);
+            if (!empty($matches)) {
+                $labels = array_map(function ($label) {
+                    return str_replace(['{', '}'], '', $label);
+                }, $matches[0]);
 
-            return (empty($labels)) ? [] : $labels;
+                return (empty($labels)) ? [] : $labels;
+            }
         }
 
-        return array();
+        return [];
     }
 
     protected function getLatestVersion()
@@ -613,7 +632,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function removeReleaseCandidates(Release $release)
     {
         $this->getStyleHelper()
-             ->note("This fieature is not supported by API see thread " .
+             ->note("This action 'removeReleaseCandidates' is not supported by API see thread " .
                  "https://bitbucket.org/site/master/issues/12295/add-support-to-create-delete-branch-via");
     }
 
