@@ -321,30 +321,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
             if ($mergeRequestInfo['source']['branch']['name'] === $feature->getName()
                 && $mergeRequestInfo['destination']['branch']['name'] === $masterBranch
             ) {
-                $diff = $mergeRequestsApi->diff($username, $repository,  $mergeRequestInfo['id'])->getContent();
-                $diffFiles = explode("diff --git ", $diff);
-
-                // Dirty hack to detect if pull request is mergeable
-                $isMergeable = true;
-                foreach ($diffFiles as $diffFile) {
-                    if (strpos($diffFile, '<<<<<<< destination') !== false
-                        && strpos($diffFile, '>>>>>>> source') !== false
-                    ) {
-                        $isMergeable = false;
-                        break;
-                    }
-                }
-
-                $mergeRequest = new MergeRequest($mergeRequestInfo['id']);
-                $mergeRequest->setName($mergeRequestInfo['title'])
-                    ->setCommit($mergeRequestInfo['source']['commit']['hash'])
-                    ->setSourceBranch($mergeRequestInfo['source']['branch']['name'])
-                    ->setUrl($mergeRequestInfo['links']['html']['href'])
-                    ->setTargetBranch($mergeRequestInfo['destination']['branch']['name'])
-                    ->setDescription($mergeRequestInfo['description'])
-                    ->setIsMergeable($isMergeable);
-
-                return $mergeRequest;
+                return $this->buildMergeRequest($mergeRequestInfo['number']);
             }
         }
         return null;
@@ -551,7 +528,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeatureLabels(Feature $feature)
     {
-        if ($feature->getMergeRequest()) {
+        if ($feature->getMergeRequest()->getNumber()) {
             preg_match_all('/\{[A-Z-]*\}/', $feature->getMergeRequest()->getName(), $matches);
             if (!empty($matches)) {
                 $labels = array_map(function ($label) {

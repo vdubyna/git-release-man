@@ -141,14 +141,18 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         $repository = $this->getConfiguration()->getRepository();
         $username   = $this->getConfiguration()->getUsername();
 
-        $labels = $this->getApiClient()
-            ->issues()
-            ->labels()
-            ->all($username, $repository, $feature->getMergeRequest()->getNumber());
+        if ($feature->getMergeRequest()->getNumber()) {
+            $labels = $this->getApiClient()
+                ->issues()
+                ->labels()
+                ->all($username, $repository, $feature->getMergeRequest()->getNumber());
 
-        return array_map(function ($label) {
-            return $label['name'];
-        }, $labels);
+            return array_map(function ($label) {
+                return $label['name'];
+            }, $labels);
+        }
+
+        return [];
     }
 
     /**
@@ -176,19 +180,7 @@ class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
                 )
             );
         if (count($mergeRequests) === 1) {
-            $mergeRequestInfo = $mergeRequests[0];
-            $mergeRequestInfo = $client->pullRequest()
-                ->show($username, $repository, $mergeRequestInfo['number']);
-            $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
-            $mergeRequest->setName($mergeRequestInfo['title'])
-                         ->setUrl($mergeRequestInfo['html_url'])
-                         ->setDescription($mergeRequestInfo['body'])
-                         ->setIsMergeable($mergeRequestInfo['mergeable'])
-                         ->setCommit($mergeRequestInfo['head']['sha'])
-                         ->setSourceBranch($mergeRequestInfo['head']['ref'])
-                         ->setTargetBranch($mergeRequestInfo['base']['ref']);
-
-            return $mergeRequest;
+            return $this->buildMergeRequest($mergeRequests[0]['number']);
         }
 
         return null;

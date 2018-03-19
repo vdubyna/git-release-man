@@ -12,6 +12,7 @@ class Configuration
     protected $repository;
     protected $username;
     protected $gitAdapter;
+    protected $getGitAdapterEndpoint;
     protected $token;
     protected $releaseCandidateLabel;
     protected $releaseStableLabel;
@@ -42,6 +43,9 @@ class Configuration
                 // TODO verify values
                 if (isset($configuration['gitadapter'])) {
                     $this->setGitAdapter($configuration['gitadapter']);
+                }
+                if (isset($configuration['gitadapter-endpoint'])) {
+                    $this->setGitAdapterEndpoint($configuration['gitadapter-endpoint']);
                 }
                 if (isset($configuration['username'])) {
                     $this->setUsername($configuration['username']);
@@ -123,23 +127,29 @@ class Configuration
     }
 
     /**
-     * @param $username
-     * @param $token
-     * @param $repository
-     *
-     * @param $gitAdapter
+     * @param        $gitAdapter
+     * @param string $username
+     * @param string $token
+     * @param string $repository
+     * @param string $gitAdapterEndpoint
      */
-    public function initConfiguration($username, $token, $repository, $gitAdapter) {
+    public function initConfiguration($gitAdapter,
+                                      $username = '',
+                                      $token = '',
+                                      $repository = '',
+                                      $gitAdapterEndpoint = '')
+    {
         $array = array(
             "gitadapter"              => $gitAdapter,
+            "gitadapter-endpoint"     => $gitAdapterEndpoint,
             "master-branch"           => $this->getMasterBranch(),
             "feature-prefix"          => $this->getFeaturePrefix(),
             "release-candidate-label" => $this->getLabelForReleaseCandidate(),
             "release-stable-label"    => $this->getLabelForReleaseStable(),
         );
 
-        $verifyArguments = [$username, $token, $repository];
-        array_walk($verifyArguments, function($key) use ($array) {
+        $verifyArguments = [$username, $token, $repository, $gitAdapterEndpoint];
+        array_walk($verifyArguments, function ($key) use ($array) {
             return (!$key) ?: array_push($array, $key);
         });
 
@@ -149,7 +159,6 @@ class Configuration
 
     /**
      * @return bool
-     * @throws ExitException
      */
     public function isConfigurationExists()
     {
@@ -162,7 +171,7 @@ class Configuration
      */
     public function getGitAdapterClassName()
     {
-        $gitAdapter = ucfirst(strtolower($this->getGitAdapter()));
+        $gitAdapter          = ucfirst(strtolower($this->getGitAdapter()));
         $gitAdapterClassName = "\\Mirocode\\GitReleaseMan\\GitAdapter\\{$gitAdapter}Adapter";
         if (!class_exists($gitAdapterClassName)) {
             throw new ExitException("GitAdapter {$gitAdapterClassName} does not exist.");
@@ -172,7 +181,7 @@ class Configuration
     }
 
     /**
-     * @param mixed $repository
+     * @param string $repository
      *
      * @return Configuration
      */
@@ -184,7 +193,7 @@ class Configuration
     }
 
     /**
-     * @param mixed $username
+     * @param string $username
      *
      * @return Configuration
      */
@@ -193,10 +202,10 @@ class Configuration
         $this->username = $username;
 
         return $this;
-}
+    }
 
     /**
-     * @param mixed $gitAdapter
+     * @param string $gitAdapter
      *
      * @return Configuration
      */
@@ -208,13 +217,33 @@ class Configuration
     }
 
     /**
-     * @param mixed $token
+     * @param string $token
      *
      * @return Configuration
      */
     public function setToken($token)
     {
         $this->token = $token;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getGitAdapterEndpoint()
+    {
+        return $this->getGitAdapterEndpoint;
+    }
+
+    /**
+     * @param string $gitAdapterEndpoint
+     *
+     * @return Configuration
+     */
+    public function setGitAdapterEndpoint($gitAdapterEndpoint)
+    {
+        $this->getGitAdapterEndpoint = $gitAdapterEndpoint;
 
         return $this;
     }

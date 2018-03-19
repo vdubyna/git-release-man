@@ -46,7 +46,7 @@ class BuildCommand extends Command
 
         $username = ($this->getConfiguration()->getUsername())
             ? $this->getConfiguration()->getUsername()
-            : $this->askAndGetValueOrExit('What is your name?');
+            : $this->askAndGetValueOrExit('What is your username?');
 
         $token = ($this->getConfiguration())
             ? ($this->getConfiguration()->getToken())
@@ -56,7 +56,7 @@ class BuildCommand extends Command
             ? $this->getConfiguration()->getRepository()
             : $this->askAndGetValueOrExit('What is your repository name?');
 
-        $this->getConfiguration()->initConfiguration($username, $token, $repositoryName, $gitAdapter);
+        $this->getConfiguration()->initConfiguration($gitAdapter, $username, $token, $repositoryName);
     }
 
     /**

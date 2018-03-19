@@ -3,19 +3,22 @@
 namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Composer\Semver\Semver;
+use Gitlab\Api\MergeRequests;
+use Gitlab\Api\Repositories;
 use Gitlab\Client;
+use Gitlab\Exception\RuntimeException as GitlabRuntimeException;
 use InvalidArgumentException;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\MergeRequest;
 use Mirocode\GitReleaseMan\Entity\Release;
+use Mirocode\GitReleaseMan\ExitException;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterAbstract as GitAdapterAbstract;
 use Mirocode\GitReleaseMan\GitAdapter\GitAdapterInterface as GitAdapterInterface;
 use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Version;
 
-class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
+class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, GitServiceInterface
 {
-
     /**
      * @var Client
      */
@@ -27,12 +30,12 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeaturesList()
     {
-        $username   = $this->getConfiguration()->getUsername();
-        $repository = $this->getConfiguration()->getRepository();
+        $repository   = $this->getConfiguration()->getRepository();
+        $pager = new \Gitlab\ResultPager($this->getApiClient());
 
-        $branches = $this->getApiClient()
-                         ->repository()
-                         ->branches($username, $repository);
+        /** @var Repositories $repository */
+        $repositoryApi = $this->getApiClient()->api('repositories');
+        $branches = $pager->fetchall($repositoryApi, 'branches', [$repository]);
 
         $features = array_map(function ($branch) {
             return $this->buildFeature($branch['name']);
@@ -57,24 +60,15 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
             throw new ExitException("You can start feature only if it has status: NEW.");
         }
 
-        $username     = $this->getConfiguration()->getUsername();
         $repository   = $this->getConfiguration()->getRepository();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-        $masterBranchInfo = $this->getApiClient()
-                                 ->gitData()
-                                 ->references()
-                                 ->show($username, $repository, "heads/{$masterBranch}");
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
+        $branchInfo = $repositoryApi->createBranch($repository, $feature->getName(), $masterBranch);
 
-        $featureInfo = $this->getApiClient()
-                            ->gitData()
-                            ->references()
-                            ->create($username, $repository, array(
-                                'ref' => "refs/heads/{$feature->getName()}",
-                                'sha' => $masterBranchInfo['object']['sha'],
-                            ));
         $feature->setStatus(Feature::STATUS_STARTED)
-                ->setCommit($featureInfo['object']['sha']);
+                ->setCommit($branchInfo['commit']['id']);
 
         return $feature;
     }
@@ -123,7 +117,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
         $client->issues()
                ->labels()
-               ->add($username, $repository, $feature->getMergeRequestNumber(), $label);
+               ->add($username, $repository, $feature->getMergeRequest()->getNumber(), $label);
         $feature->addLabel($label);
 
         return $feature;
@@ -136,17 +130,26 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeatureLabels(Feature $feature)
     {
-        $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
 
-        $labels = $this->getApiClient()
-                       ->issues()
-                       ->labels()
-                       ->all($username, $repository, $feature->getMergeRequestNumber());
+        if ($feature->getMergeRequest()->getNumber()) {
+            $repository   = $this->getConfiguration()->getRepository();
+            $username     = $this->getConfiguration()->getUsername();
+            $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-        return array_map(function ($label) {
-            return $label['name'];
-        }, $labels);
+            /** @var MergeRequests $mergeRequestsApi */
+            $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+            $mergeRequests = $mergeRequestsApi->all($repository, [
+                'state' => MergeRequests::STATE_OPENED,
+                'source_branch' => $feature->getName(),
+                'target_branch' => $masterBranch
+            ]);
+
+            return array_map(function ($label) {
+                return $label['name'];
+            }, $mergeRequests[0]['labels']);
+        }
+
+        return [];
     }
 
     /**
@@ -157,36 +160,18 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getMergeRequestByFeature(Feature $feature)
     {
         $repository   = $this->getConfiguration()->getRepository();
-        $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
-        $client       = $this->getApiClient();
 
-        $mergeRequests = $client
-            ->pullRequest()
-            ->all(
-                $username,
-                $repository,
-                array(
-                    'state' => 'open',
-                    'type'  => 'pr',
-                    'head'  => "{$username}:{$feature->getName()}",
-                    'base'  => $masterBranch,
-                )
-            );
+        /** @var MergeRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+        $mergeRequests = $mergeRequestsApi->all($repository, [
+            'state' => MergeRequests::STATE_OPENED,
+            'source_branch' => $feature->getName(),
+            'target_branch' => $masterBranch
+            ]);
+
         if (count($mergeRequests) === 1) {
-            $mergeRequestInfo = $mergeRequests[0];
-            $mergeRequestInfo = $client->pullRequest()
-                                       ->show($username, $repository, $mergeRequestInfo['number']);
-            $mergeRequest = new MergeRequest($mergeRequestInfo['number']);
-            $mergeRequest->setName($mergeRequestInfo['title'])
-                         ->setUrl($mergeRequestInfo['html_url'])
-                         ->setDescription($mergeRequestInfo['body'])
-                         ->setIsMergeable($mergeRequestInfo['mergeable'])
-                         ->setCommit($mergeRequestInfo['head']['sha'])
-                         ->setSourceBranch($mergeRequestInfo['head']['ref'])
-                         ->setTargetBranch($mergeRequestInfo['base']['ref']);
-
-            return $mergeRequest;
+            return $this->buildMergeRequest($mergeRequests[0]['id']);
         }
 
         return null;
@@ -199,38 +184,23 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function openMergeRequestByFeature(Feature $feature)
     {
-        $client       = $this->getApiClient();
         $repository   = $this->getConfiguration()->getRepository();
-        $username     = $this->getConfiguration()->getUsername();
         $masterBranch = $this->getConfiguration()->getMasterBranch();
 
-        $mergeRequest = $client
-            ->pullRequest()
-            ->create($username, $repository, array(
-                'base'  => $masterBranch,
-                'head'  => "{$username}:{$feature->getName()}",
-                'title' => ucfirst(str_replace('_', ' ', $feature->getName())),
-                'body'  => 'Description',
-            ));
+        /** @var MergeRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+        $mergeRequest = $mergeRequestsApi
+            ->create($repository, $feature->getName(), $masterBranch, $feature->getName());
 
-        $pullRequestCommits = $client->pullRequest()->commits(
-            $username,
-            $repository,
-            $mergeRequest['number']
-        );
+        $mergeRequestCommits = $mergeRequestsApi->commits($repository, $mergeRequest['id']);
 
-        $pullRequestDescription = array_reduce($pullRequestCommits, function ($message, $commit) {
-            return $message . '* ' . $commit['commit']['message'] . PHP_EOL;
+        $mergeRequestDescription = array_reduce($mergeRequestCommits, function ($message, $commit) {
+            return $message . '* ' . $commit['message'] . ' | ' . $commit['message'] . PHP_EOL;
         }, '');
 
-        $mergeRequestInfo = $client->pullRequest()->update(
-            $username,
-            $repository,
-            $mergeRequest['number'],
-            array('body' => $pullRequestDescription)
-        );
+        $mergeRequestsApi->update($repository, $mergeRequest['id'], ['description' => $mergeRequestDescription]);
 
-        return new MergeRequest($mergeRequestInfo['number']);
+        return $this->buildMergeRequest($mergeRequest['id']);
     }
 
     /**
@@ -240,9 +210,9 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function markFeatureReadyForReleaseCandidate(Feature $feature)
     {
-        if (!$feature->getMergeRequestNumber()) {
+        if (!$feature->getMergeRequest()) {
             $mergeRequest = $this->openMergeRequestByFeature($feature);
-            $feature->setMergeRequestNumber($mergeRequest->getNumber());
+            $feature->setMergeRequest($mergeRequest);
         }
 
         return parent::markFeatureReadyForReleaseCandidate($feature);
@@ -312,7 +282,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $client->pullRequest()->merge(
             $username,
             $repository,
-            $feature->getMergeRequestNumber(),
+            $feature->getMergeRequest()->getNumber(),
             "Add feature {$feature->getName()}",
             $feature->getMergeRequest()->getCommit(),
             'squash'
@@ -438,13 +408,14 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function buildFeature($featureName)
     {
-        $username    = $this->getConfiguration()->getUsername();
         $repository  = $this->getConfiguration()->getRepository();
 
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
         try {
-            $featureInfo = $this->getApiClient()->repository()->branches($username, $repository, $featureName);
-        } catch (\Github\Exception\RuntimeException $e) {
-            $featureInfo = array();
+            $featureInfo = $repositoryApi->branch($repository, $featureName);
+        } catch (GitlabRuntimeException $e) {
+            $featureInfo = null;
         }
 
         $feature = new Feature($featureName);
@@ -453,13 +424,12 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
             $feature->setStatus(Feature::STATUS_NEW);
         } else {
             $feature->setStatus(Feature::STATUS_STARTED)
-                    ->setCommit($featureInfo['commit']['sha']);
+                    ->setCommit($featureInfo['commit']['id']);
 
             $mergeRequest = $this->getMergeRequestByFeature($feature);
 
             if ($mergeRequest && $mergeRequest->getNumber()) {
-                $feature->setMergeRequestNumber($mergeRequest->getNumber())
-                        ->setMergeRequest($mergeRequest);
+                $feature->setMergeRequest($mergeRequest);
 
                 $feature->setLabels($this->getFeatureLabels($feature));
 
@@ -482,8 +452,8 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
     protected function getApiClient()
     {
         if (empty($this->apiClient)) {
-            $client = Client::create($this->getConfiguration()->getRepositoryUrl())
-                            ->authenticate($this->getConfiguration()->getToken(), Client::AUTH_URL_TOKEN);
+            $client = Client::create($this->getConfiguration()->getGitAdapterEndpoint())
+                ->authenticate($this->getConfiguration()->getToken(), Client::AUTH_URL_TOKEN);
 
             $this->apiClient = $client;
         }
@@ -496,8 +466,10 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function removeLabelsFromFeature(Feature $feature)
     {
-        if ($feature->getMergeRequest()->getNumber()) {
-            $client = $this->getApiClient();
+        if ($feature->getMergeRequest()) {
+            $repository = $this->getConfiguration()->getRepository();
+            $username   = $this->getConfiguration()->getUsername();
+            $client     = $this->getApiClient();
 
             $labels = array(
                 $this->getConfiguration()->getLabelForReleaseStable(),
@@ -505,9 +477,9 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
             );
 
             foreach ($labels as $label) {
-                $client->mergeRequests()->
+                $client->issues()
                        ->labels()
-                       ->remove($username, $repository, $feature->getMergeRequestNumber(), $label);
+                       ->remove($username, $repository, $feature->getMergeRequest()->getNumber(), $label);
             }
         }
     }
@@ -526,5 +498,31 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface
                    ->references()
                    ->remove($username, $repository, "heads/{$releaseCandidateBranch}");
         }
+    }
+
+    /**
+     * @param integer $mergeRequestId
+     *
+     * @return MergeRequest
+     */
+    public function buildMergeRequest($mergeRequestId)
+    {
+        $repository   = $this->getConfiguration()->getRepository();
+        $username     = $this->getConfiguration()->getUsername();
+
+        /** @var MergeRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+        $mergeRequestInfo = $mergeRequestsApi->show($repository, $mergeRequestId);
+
+        $mergeRequest = new MergeRequest($mergeRequestInfo['id']);
+        $mergeRequest->setName($mergeRequestInfo['title'])
+                     ->setUrl($mergeRequestInfo['web_url'])
+                     ->setDescription($mergeRequestInfo['description'])
+                     ->setIsMergeable(($mergeRequestInfo['merge_status'] === 'can_be_merged'))
+                     ->setCommit($mergeRequestInfo['sha'])
+                     ->setSourceBranch($mergeRequestInfo['source_branch'])
+                     ->setTargetBranch($mergeRequestInfo['target_branch']);
+
+        return $mergeRequest;
     }
 }
