@@ -430,13 +430,16 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function closeFeature(Feature $feature)
     {
-        $username   = $this->getConfiguration()->getUsername();
         $repository = $this->getConfiguration()->getRepository();
 
-        $this->getApiClient()
-             ->gitData()
-             ->references()
-             ->remove($username, $repository, "heads/{$feature->getName()}");
+        // We need project id becase of the API issue https://gitlab.com/gitlab-org/gitlab-ce/issues/41675
+        /** @var Projects $projectsApi */
+        $projectsApi = $this->getApiClient()->api('projects');
+        $projectInfo = $projectsApi->show($repository);
+
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
+        $repositoryApi->deleteBranch($projectInfo['id'], $feature->getName());
 
         $feature->setStatus(Feature::STATUS_CLOSED);
 
@@ -512,19 +515,24 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     {
         if ($feature->getMergeRequest()) {
             $repository = $this->getConfiguration()->getRepository();
-            $username   = $this->getConfiguration()->getUsername();
-            $client     = $this->getApiClient();
 
             $labels = array(
                 $this->getConfiguration()->getLabelForReleaseStable(),
                 $this->getConfiguration()->getLabelForReleaseCandidate(),
-            );
+            ); // TODO remove only git-release-man labels
 
-            foreach ($labels as $label) {
-                $client->issues()
-                       ->labels()
-                       ->remove($username, $repository, $feature->getMergeRequest()->getNumber(), $label);
-            }
+            // We need project id becase of the API issue https://gitlab.com/gitlab-org/gitlab-ce/issues/41675
+            /** @var Projects $projectsApi */
+            $projectsApi = $this->getApiClient()->api('projects');
+            $projectInfo = $projectsApi->show($repository);
+
+            /** @var MergeRequests $mergeRequestsApi */
+            $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+            $mergeRequestsApi->update(
+                $projectInfo['id'],
+                $feature->getMergeRequest()->getNumber(),
+                ['labels' => '']
+            );
         }
     }
 
@@ -534,13 +542,17 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     public function removeReleaseCandidates(Release $release)
     {
         $repository = $this->getConfiguration()->getRepository();
-        $username   = $this->getConfiguration()->getUsername();
-        $client     = $this->getApiClient();
+
+        // We need project id becase of the API issue https://gitlab.com/gitlab-org/gitlab-ce/issues/41675
+        /** @var Projects $projectsApi */
+        $projectsApi = $this->getApiClient()->api('projects');
+        $projectInfo = $projectsApi->show($repository);
+
+        /** @var Repositories $repositoryApi */
+        $repositoryApi = $this->getApiClient()->api('repositories');
 
         foreach ($this->getRCBranchesListByRelease($release) as $releaseCandidateBranch) {
-            $client->gitData()
-                   ->references()
-                   ->remove($username, $repository, "heads/{$releaseCandidateBranch}");
+            $repositoryApi->deleteBranch($projectInfo['id'], $releaseCandidateBranch);
         }
     }
 
