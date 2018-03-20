@@ -508,10 +508,10 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         if ($feature->getMergeRequest()) {
             $repository = $this->getConfiguration()->getRepository();
 
-            $labels = array(
+            $labels = [
                 $this->getConfiguration()->getLabelForReleaseStable(),
                 $this->getConfiguration()->getLabelForReleaseCandidate(),
-            ); // TODO remove only git-release-man labels
+            ]; // TODO remove only git-release-man labels
 
             // We need project id becase of the API issue https://gitlab.com/gitlab-org/gitlab-ce/issues/41675
             /** @var Projects $projectsApi */
