@@ -15,6 +15,11 @@ class FeatureCommandTest extends TestCase
 {
     const DEFAULT_FEATURE_NAME = 'feature-123-my-cool-gear';
 
+    protected function setUp()
+    {
+        $this->markTestSkipped('Test not ready yet');
+    }
+
     public function testExecuteFeatureStart()
     {
         $command = $this->getFeatureCommandWithNewFeature();
