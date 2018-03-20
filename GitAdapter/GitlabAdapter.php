@@ -31,12 +31,12 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function getFeaturesList()
     {
-        $repository   = $this->getConfiguration()->getRepository();
-        $pager = new ResultPager($this->getApiClient());
+        $repository = $this->getConfiguration()->getRepository();
+        $pager      = new ResultPager($this->getApiClient());
 
         /** @var Repositories $repository */
         $repositoryApi = $this->getApiClient()->api('repositories');
-        $branches = $pager->fetchall($repositoryApi, 'branches', [$repository]);
+        $branches      = $pager->fetchall($repositoryApi, 'branches', [$repository]);
 
         $features = array_map(function ($branch) {
             return $this->buildFeature($branch['name']);
@@ -66,7 +66,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
         /** @var Repositories $repositoryApi */
         $repositoryApi = $this->getApiClient()->api('repositories');
-        $branchInfo = $repositoryApi->createBranch($repository, $feature->getName(), $masterBranch);
+        $branchInfo    = $repositoryApi->createBranch($repository, $feature->getName(), $masterBranch);
 
         $feature->setStatus(Feature::STATUS_STARTED)
                 ->setCommit($branchInfo['commit']['id']);
@@ -128,15 +128,15 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
             /** @var MergeRequests $mergeRequestsApi */
             $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
-            $mergeRequests = $mergeRequestsApi->all($repository, [
-                'state' => MergeRequests::STATE_OPENED,
+            $mergeRequests    = $mergeRequestsApi->all($repository, [
+                'state'         => MergeRequests::STATE_OPENED,
                 'source_branch' => $feature->getName(),
-                'target_branch' => $masterBranch
+                'target_branch' => $masterBranch,
             ]);
 
             return array_map(function ($label) {
-                    return $label['name'];
-                }, $mergeRequests[0]['labels']);
+                return $label['name'];
+            }, $mergeRequests[0]['labels']);
         }
 
         return [];
@@ -154,11 +154,11 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
         /** @var MergeRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
-        $mergeRequests = $mergeRequestsApi->all($repository, [
-            'state' => MergeRequests::STATE_OPENED,
+        $mergeRequests    = $mergeRequestsApi->all($repository, [
+            'state'         => MergeRequests::STATE_OPENED,
             'source_branch' => $feature->getName(),
-            'target_branch' => $masterBranch
-            ]);
+            'target_branch' => $masterBranch,
+        ]);
 
         if (count($mergeRequests) === 1) {
             return $this->buildMergeRequest($mergeRequests[0]['iid']);
@@ -184,7 +184,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
         /** @var MergeRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
-        $mergeRequest = $mergeRequestsApi
+        $mergeRequest     = $mergeRequestsApi
             ->create($repository, $feature->getName(), $masterBranch, $feature->getName(), null, $projectInfo['id']);
 
         $mergeRequestCommits = $mergeRequestsApi->commits($projectInfo['id'], $mergeRequest['iid']);
@@ -224,7 +224,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
         /** @var Repositories $repository */
         $repositoryApi = $this->getApiClient()->api('repositories');
-        $tags = $pager->fetchall($repositoryApi, 'tags', [$repository]);
+        $tags          = $pager->fetchall($repositoryApi, 'tags', [$repository]);
 
         // get Tags
         $versionsTags = [];
@@ -273,7 +273,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
         /** @var MergeRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
-        $mergeRequest = $mergeRequestsApi
+        $mergeRequest     = $mergeRequestsApi
             ->create(
                 $repository,
                 $feature->getName(),
@@ -325,7 +325,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function createReleaseTag(Release $release)
     {
-        $repository        = $this->getConfiguration()->getRepository();
+        $repository = $this->getConfiguration()->getRepository();
 
         /** @var Repositories $repositoryApi */
         $repositoryApi = $this->getApiClient()->api('repositories');
@@ -365,7 +365,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     public function getLatestReleaseStableTag()
     {
         $repository = $this->getConfiguration()->getRepository();
-        $pager = new ResultPager($this->getApiClient());
+        $pager      = new ResultPager($this->getApiClient());
         /** @var Repositories $repositoryApi */
         $repositoryApi = $this->getApiClient()->api('repositories');
 
@@ -373,7 +373,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             return $branch['name'];
         }, $pager->fetchall($repositoryApi, 'tags', [$repository]));
 
-        $versionsTags = array_filter($versionsTags, function($version) {
+        $versionsTags = array_filter($versionsTags, function ($version) {
             try {
                 return Version::fromString($version)->isStable();
             } catch (InvalidArgumentException $e) {
@@ -395,7 +395,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     public function getLatestReleaseCandidateTag()
     {
         $repository = $this->getConfiguration()->getRepository();
-        $pager = new ResultPager($this->getApiClient());
+        $pager      = new ResultPager($this->getApiClient());
         /** @var Repositories $repositoryApi */
         $repositoryApi = $this->getApiClient()->api('repositories');
 
@@ -403,7 +403,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             return $branch['name'];
         }, $pager->fetchall($repositoryApi, 'tags', [$repository]));
 
-        $versionsTags = array_filter($versionsTags, function($version) {
+        $versionsTags = array_filter($versionsTags, function ($version) {
             try {
                 return Version::fromString($version)->isStable();
             } catch (InvalidArgumentException $e) {
@@ -455,7 +455,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function buildFeature($featureName)
     {
-        $repository  = $this->getConfiguration()->getRepository();
+        $repository = $this->getConfiguration()->getRepository();
 
         /** @var Repositories $repositoryApi */
         $repositoryApi = $this->getApiClient()->api('repositories');
@@ -500,7 +500,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     {
         if (empty($this->apiClient)) {
             $client = Client::create($this->getConfiguration()->getGitAdapterEndpoint())
-                ->authenticate($this->getConfiguration()->getToken(), Client::AUTH_URL_TOKEN);
+                            ->authenticate($this->getConfiguration()->getToken(), Client::AUTH_URL_TOKEN);
 
             $this->apiClient = $client;
         }
@@ -563,7 +563,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function buildMergeRequest($mergeRequestId)
     {
-        $repository   = $this->getConfiguration()->getRepository();
+        $repository = $this->getConfiguration()->getRepository();
 
         /** @var MergeRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
