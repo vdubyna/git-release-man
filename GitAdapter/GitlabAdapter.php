@@ -122,24 +122,32 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function getFeatureLabels(Feature $feature)
     {
-        if ($feature->getMergeRequest()->getNumber()) {
-            $repository   = $this->getConfiguration()->getRepository();
-            $masterBranch = $this->getConfiguration()->getMasterBranch();
-
-            /** @var MergeRequests $mergeRequestsApi */
-            $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
-            $mergeRequests    = $mergeRequestsApi->all($repository, [
-                'state'         => MergeRequests::STATE_OPENED,
-                'source_branch' => $feature->getName(),
-                'target_branch' => $masterBranch,
-            ]);
-
-            return array_map(function ($label) {
-                return $label['name'];
-            }, $mergeRequests[0]['labels']);
+        if (!$feature->getMergeRequest()->getNumber()) {
+            return [];
         }
 
-        return [];
+        $repository   = $this->getConfiguration()->getRepository();
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+
+        /** @var MergeRequests $mergeRequestsApi */
+        $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
+        $mergeRequests    = $mergeRequestsApi->all($repository, [
+            'state'         => MergeRequests::STATE_OPENED,
+            'source_branch' => $feature->getName(),
+            'target_branch' => $masterBranch,
+        ]);
+
+        if (empty($mergeRequests)) {
+            return [];
+        }
+
+        $mergeRequests = array_filter($mergeRequests, function ($mergeRequestInfo) use ($masterBranch, $feature) {
+            return ($mergeRequestInfo['state'] === MergeRequests::STATE_OPENED
+                && $mergeRequestInfo['target_branch'] === $masterBranch
+                && $mergeRequestInfo['source_branch'] === $feature->getName());
+        });
+
+        return (count($mergeRequests) === 1) ? $mergeRequests[0]['labels'] : [];
     }
 
     /**
@@ -160,11 +168,17 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             'target_branch' => $masterBranch,
         ]);
 
-        if (count($mergeRequests) === 1) {
-            return $this->buildMergeRequest($mergeRequests[0]['iid']);
+        if (empty($mergeRequests)) {
+            return null;
         }
 
-        return null;
+        $mergeRequests = array_filter($mergeRequests, function ($mergeRequestInfo) use ($masterBranch, $feature) {
+            return ($mergeRequestInfo['state'] === MergeRequests::STATE_OPENED
+                && $mergeRequestInfo['target_branch'] === $masterBranch
+                && $mergeRequestInfo['source_branch'] === $feature->getName());
+        });
+
+        return (count($mergeRequests) === 1) ? $this->buildMergeRequest($mergeRequests[0]['iid']) : null;
     }
 
     /**
