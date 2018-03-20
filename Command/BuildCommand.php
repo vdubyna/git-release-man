@@ -178,7 +178,7 @@ class BuildCommand extends Command
     public function latestReleaseStableAction()
     {
         $latestReleaseTag = $this->getGitAdapter()->getLatestReleaseStableTag();
-        $this->getStyleHelper()->write($latestReleaseTag);
+        $this->getStyleHelper()->note($latestReleaseTag);
     }
 
     /**
@@ -187,6 +187,6 @@ class BuildCommand extends Command
     public function latestReleaseCandidateAction()
     {
         $latestTestReleaseTag = $this->getGitAdapter()->getLatestReleaseCandidateTag();
-        $this->getStyleHelper()->write($latestTestReleaseTag);
+        $this->getStyleHelper()->note($latestTestReleaseTag);
     }
 }

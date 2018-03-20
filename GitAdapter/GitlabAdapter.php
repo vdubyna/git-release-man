@@ -108,7 +108,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
         $mergeRequestsApi
             ->update($repository, $feature->getMergeRequest()->getNumber(),
-                ['labels' => implode(',', $feature->getLabels()) . $label]);
+                ['labels' => implode(',', $feature->getLabels()) . ',' . $label]);
 
         $feature->addLabel($label);
 
@@ -389,6 +389,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             throw new ExitException("There is no any stable release tag");
         }
 
+        $versionsTags = Semver::sort($versionsTags);
         return end($versionsTags);
     }
 
@@ -420,8 +421,9 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         if (empty($versionsTags)) {
             throw new ExitException("There is no any release candidate tag");
         }
-
+        $versionsTags              = Semver::sort($versionsTags);
         $latestReleaseCandidateTag = end($versionsTags);
+
         if (Version::fromString($latestReleaseCandidateTag)->isStable()) {
             throw new ExitException("Latest tag {$latestReleaseCandidateTag} is Stable. Generate RC.");
         }
