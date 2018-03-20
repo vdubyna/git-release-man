@@ -225,32 +225,23 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         /** @var Repositories $repository */
         $repositoryApi = $this->getApiClient()->api('repositories');
         $tags          = $pager->fetchall($repositoryApi, 'tags', [$repository]);
+        $branches      = $pager->fetchall($repositoryApi, 'branches', [$repository]);
 
-        // get Tags
-        $versionsTags = [];
-        foreach ($tags as $tag) {
+        $versions = array_filter(array_merge($tags, $branches), function ($versionInfo) {
             try {
-                Version::fromString($tag['name']);
-                array_push($versionsTags, $tag['name']);
-            } catch (InvalidArgumentException $e) {
-                continue;
-            }
-        }
+                Version::fromString($versionInfo['name']);
 
-        $branches = $pager->fetchall($repositoryApi, 'branches', [$repository]);
-        // get Branches
-        $versionsBranches = [];
-        foreach ($branches as $branch) {
-            try {
-                Version::fromString($branch['name']);
-                array_push($versionsBranches, $branch['name']);
+                return true;
             } catch (InvalidArgumentException $e) {
-                continue;
+                return false;
             }
-        }
+        });
 
-        $versions = Semver::sort(array_merge($versionsTags, $versionsBranches));
-        $version  = (empty($versions)) ? Configuration::DEFAULT_VERSION : end($versions);
+        $versions = Semver::sort(array_map(function ($versionInfo) {
+            return $versionInfo['name'];
+        }, $versions));
+
+        $version = (empty($versions)) ? Configuration::DEFAULT_VERSION : end($versions);
 
         return Version::fromString($version);
     }
@@ -342,12 +333,11 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
     public function getRCBranchesListByRelease(Release $release)
     {
         $repository = $this->getConfiguration()->getRepository();
+        $pager      = new ResultPager($this->getApiClient());
 
-        $pager = new ResultPager($this->getApiClient());
         /** @var Repositories $repositoryApi */
         $repositoryApi = $this->getApiClient()->api('repositories');
-
-        $branches = $pager->fetchall($repositoryApi, 'branches', [$repository]);
+        $branches      = $pager->fetchall($repositoryApi, 'branches', [$repository]);
 
         $branches = array_map(function ($branch) {
             return $branch['name'];
@@ -405,7 +395,9 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
         $versionsTags = array_filter($versionsTags, function ($version) {
             try {
-                return Version::fromString($version)->isStable();
+                Version::fromString($version);
+
+                return true;
             } catch (InvalidArgumentException $e) {
                 return false;
             }
