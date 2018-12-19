@@ -94,7 +94,7 @@ class FeatureCommand extends Command
             $feature = $this->getGitAdapter()->startFeature($feature);
             if ($feature->getStatus() === Feature::STATUS_STARTED) {
                 $this->getStyleHelper()
-                     ->success("Feature {$feature->getName()} successfully created on remote repository.");
+                     ->success("Feature {$feature->getName()} successfully created.");
             }
         } elseif ($feature->getStatus() === Feature::STATUS_STARTED) {
             $this->getStyleHelper()

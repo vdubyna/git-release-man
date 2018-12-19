@@ -6,6 +6,7 @@ use Github\Api\Issue\Labels;
 use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\Release;
+use Mirocode\GitReleaseMan\Version;
 use Symfony\Component\Console\Input\InputArgument;
 use Mirocode\GitReleaseMan\ExitException as ExitException;
 
@@ -14,6 +15,7 @@ class BuildCommand extends Command
     protected $allowedActions = [
         'init'                     => 'initAction',
         'release-candidate'        => 'releaseCandidateAction',
+        'remove-release-candidate'  => 'removeReleaseCandidateAction',
         'release-stable'           => 'releaseStableAction',
         'latest-release-stable'    => 'latestReleaseStableAction',
         'latest-release-candidate' => 'latestReleaseCandidateAction',
@@ -39,24 +41,23 @@ class BuildCommand extends Command
             : "Do you want to init git-release-man configuration in current repository?";
         $this->confirmOrExit($confirmationMassage);
 
-        $gitAdapter = ($this->getConfiguration()->getGitAdapter())
-            ? $this->getConfiguration()->getGitAdapter()
-            : $this->askAndChooseValueOrExit(
-                'What is your gitAdapter (github|bitbucket|gitlab)?', array('github', 'bitbucket', 'gitlab'));
+        $gitAdapter = $this->askAndChooseValueOrExit(
+            'What is your gitAdapter (github|bitbucket|gitlab|gitlocal|gitremote)?',
+            ['github', 'bitbucket', 'gitlab', 'gitlocal', 'gitremote'],
+            $this->getConfiguration()->getGitAdapter()
+        );
 
-        $username = ($this->getConfiguration()->getUsername())
-            ? $this->getConfiguration()->getUsername()
-            : $this->askAndGetValueOrExit('What is your username?');
-
-        $token = ($this->getConfiguration())
-            ? ($this->getConfiguration()->getToken())
-            : $this->askAndGetValueOrExit('What is your token?');
-
-        $repositoryName = ($this->getConfiguration()->getRepository())
-            ? $this->getConfiguration()->getRepository()
-            : $this->askAndGetValueOrExit('What is your repository name?');
-
-        $this->getConfiguration()->initConfiguration($gitAdapter, $username, $token, $repositoryName);
+        if (in_array($gitAdapter, ['gitlocal', 'gitremote'])) {
+            $this->getConfiguration()->initConfiguration($gitAdapter);
+        } else {
+            $username       = $this->askAndGetValueOrExit('What is your username?',
+                $this->getConfiguration()->getUsername());
+            $token          = $this->askAndGetValueOrExit('What is your token?',
+                $this->getConfiguration()->getToken());
+            $repositoryName = $this->askAndGetValueOrExit('What is your repository name?',
+                $this->getConfiguration()->getRepository());
+            $this->getConfiguration()->initConfiguration($gitAdapter, $username, $token, $repositoryName);
+        }
     }
 
     /**
@@ -72,7 +73,10 @@ class BuildCommand extends Command
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
 
-        $releaseCandidateVersion = $this->getGitAdapter()->getReleaseCandidateVersion();
+        $stableVersion = $this->getGitAdapter()->getReleaseStableVersion();
+        $versionType = $this->askAndGetValueOrExit(
+            "Current stable version {$stableVersion->__toString()}. What release type[MINOR,MAJOR,PATCH]:", Version::TYPE_PATCH);
+        $releaseCandidateVersion = $this->getGitAdapter()->getReleaseCandidateVersion($versionType);
         $releaseCandidate = new Release(
             $releaseCandidateVersion,
             $releaseCandidateVersion->__toString(),
@@ -89,7 +93,9 @@ class BuildCommand extends Command
 
         foreach ($features as $feature) {
             $this->getGitAdapter()->pushFeatureIntoReleaseCandidate($releaseCandidate, $feature);
-            $this->getStyleHelper()->success("Feature {$feature->getMergeRequest()->getNumber()} " .
+            $featureIdentifier = ($feature->getMergeRequest())
+                ? $feature->getMergeRequest()->getNumber() : $feature->getName();
+            $this->getStyleHelper()->success("Feature {$featureIdentifier} " .
                 "- {$feature->getName()} pushed into release {$releaseCandidate->getVersion()}");
         }
 
@@ -98,7 +104,6 @@ class BuildCommand extends Command
 
         $this->getStyleHelper()
              ->success("New Release Candidate \"{$releaseCandidate->getVersion()}\" is ready for testing");
-
     }
 
     /**
@@ -129,10 +134,13 @@ class BuildCommand extends Command
         }
 
         foreach ($features as $feature) {
-            $this->getStyleHelper()->note("Feature {$feature->getMergeRequest()->getNumber()} " .
+            // TODO move this logic to feature
+            $featureIdentifier = ($feature->getMergeRequest())
+                ? $feature->getMergeRequest()->getNumber() : $feature->getName();
+            $this->getStyleHelper()->note("Feature {$featureIdentifier} " .
                 "- {$feature->getName()} try merge into release {$releaseStable->getVersion()}");
             $this->getGitAdapter()->pushFeatureIntoReleaseStable($releaseStable, $feature);
-            $this->getStyleHelper()->success("Feature {$feature->getMergeRequest()->getNumber()} " .
+            $this->getStyleHelper()->success("Feature {$featureIdentifier} " .
                 "- {$feature->getName()} pushed into release {$releaseStable->getVersion()}");
         }
 

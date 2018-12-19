@@ -158,7 +158,7 @@ final class Version
             case self::STABILITY_ALPHA:
             case self::STABILITY_BETA:
             case self::STABILITY_RC:
-                if (self::$stabilises[$this->stability] === 3) {
+                if (self::$stabilises[$this->stability] === Version::STABILITY_STABLE) {
                     return new self($this->major, $this->minor, $this->patch, $stability, 1, $metaData);
                 } else {
                     return new self($this->major, $this->minor, $this->patch, $stability,
@@ -200,6 +200,6 @@ final class Version
      */
     public function isStable()
     {
-        return (self::$stabilises[$this->stability] === 3);
+        return ($this->stability === Version::STABILITY_STABLE);
     }
 }

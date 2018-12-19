@@ -14,6 +14,8 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
     protected $configuration;
     protected $styleHelper;
 
+    const ADAPTER_NAME = 'gitlocal';
+
     public function __construct(Configuration $configuration, StyleInterface $styleHelper)
     {
         $this->configuration = $configuration;
@@ -138,14 +140,16 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
+     * @param string $type
+     *
      * @return Version
      */
-    public function getReleaseCandidateVersion()
+    public function getReleaseCandidateVersion($type = Version::TYPE_MINOR)
     {
         $version = $this->getLatestVersion();
 
         if ($version->isStable()) {
-            $version = $version->increase(Version::TYPE_MINOR);
+            $version = $version->increase($type);
         }
 
         return $version->increase(Version::STABILITY_RC);

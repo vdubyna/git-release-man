@@ -16,6 +16,8 @@ use Mirocode\GitReleaseMan\Version;
 
 class GithubAdapter extends GitAdapterAbstract implements GitAdapterInterface, GitServiceInterface
 {
+    const ADAPTER_NAME = 'github';
+
     /**
      * @var Client
      */

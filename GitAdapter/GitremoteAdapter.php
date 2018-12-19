@@ -14,6 +14,8 @@ use Symfony\Component\Process\Process;
 
 class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
 {
+    const ADAPTER_NAME = 'gitremote';
+
     /**
      * Force Adapters to load feature info from repository
      *
@@ -104,6 +106,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      * @param Feature $feature
      *
      * @return array
+     * @throws ExitException
      */
     public function getFeatureLabels(Feature $feature)
     {
@@ -220,7 +223,7 @@ class GitremoteAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeaturesList()
     {
-        $features = $this->execShellCommand('git fetch --all -q && git branch -r --list "origin/feature-*"');
+        $features = $this->execShellCommand('git fetch --all -q && git branch -r --list "origin/'. $this->getConfiguration()->getFeaturePrefix() .'-*"');
 
         return array_map(function ($featureName) {
             $featureNameParts = explode('/', $featureName);

@@ -45,6 +45,7 @@ abstract class AbstractCommand extends Command
 
     /**
      * @return Configuration
+     * @throws ExitException
      */
     public function getConfiguration()
     {
@@ -153,12 +154,15 @@ abstract class AbstractCommand extends Command
     }
 
     /**
+     * @param      $message
+     * @param null $default
+     *
      * @return string
      * @throws ExitException
      */
-    protected function askAndGetValueOrExit($message)
+    protected function askAndGetValueOrExit($message, $default = null)
     {
-        $answer = $this->getStyleHelper()->ask($message);
+        $answer = $this->getStyleHelper()->ask($message, $default);
         if (!$answer) {
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }
@@ -167,12 +171,16 @@ abstract class AbstractCommand extends Command
     }
 
     /**
+     * @param      $message
+     * @param      $choices
+     * @param null $default
+     *
      * @return string
      * @throws ExitException
      */
-    protected function askAndChooseValueOrExit($message, $choices)
+    protected function askAndChooseValueOrExit($message, $choices, $default = null)
     {
-        $answer = $this->getStyleHelper()->choice($message, $choices);
+        $answer = $this->getStyleHelper()->choice($message, $choices, $default);
         if (!$answer) {
             throw new ExitException(ExitException::EXIT_MESSAGE . PHP_EOL);
         }

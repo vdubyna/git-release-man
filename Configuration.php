@@ -18,6 +18,7 @@ class Configuration
     protected $releaseStableLabel;
     protected $featurePrefix;
     protected $masterBranch;
+    protected $isDebug;
 
     const CONFIGURATION_FILENAME = '.git-release-man.yml';
     const DEFAULT_FEATURE_PREFIX = 'feature-';
@@ -72,6 +73,7 @@ class Configuration
                 if (isset($configuration['feature-prefix'])) {
                     $this->featurePrefix = $configuration['feature-prefix'];
                 }
+                $this->isDebug = (isset($configuration['debug'])) ? (bool) $configuration['debug'] : false;
             }
         } catch (ParseException $e) {
             throw new ExitException("Unable to parse the YAML string: {$e->getMessage()}");
@@ -246,5 +248,10 @@ class Configuration
         $this->getGitAdapterEndpoint = $gitAdapterEndpoint;
 
         return $this;
+    }
+
+    public function isDebug()
+    {
+        return $this->isDebug;
     }
 }

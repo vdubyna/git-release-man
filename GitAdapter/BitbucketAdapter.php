@@ -29,6 +29,8 @@ use GuzzleHttp;
  */
 class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface, GitServiceInterface
 {
+    const ADAPTER_NAME = 'butbucket';
+
     protected $apiClient;
 
     /**

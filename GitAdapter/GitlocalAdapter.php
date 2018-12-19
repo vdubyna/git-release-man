@@ -14,6 +14,8 @@ use Symfony\Component\Process\Process;
 
 class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
 {
+    const ADAPTER_NAME = 'gitlocal';
+
     /**
      * Force Adapters to load feature info from repository
      *
@@ -182,10 +184,14 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     protected function getListOfRefsByType($versionType)
     {
         $result = $this->execShellCommand("git show-ref --{$versionType}", []);
-        $items  = array_map(function ($item) {
-            $parts = explode('/', $item);
-            return end($parts);
-        }, explode("\n", $result));
+        if ($result) {
+            $items  = array_map(function ($item) {
+                $parts = explode('/', $item);
+                return end($parts);
+            }, explode("\n", $result));
+        } else {
+            $items = [];
+        }
 
         return $items;
     }
@@ -347,6 +353,10 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     protected function execShellCommand($command, $defaultValue = null)
     {
+        if ($this->getConfiguration()->isDebug()) {
+            print_r([__CLASS__, __FUNCTION__, $command]);
+        }
+
         try {
             $process = new Process($command);
             $process->setWorkingDirectory(getcwd());

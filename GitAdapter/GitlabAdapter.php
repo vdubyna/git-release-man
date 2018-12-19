@@ -21,6 +21,8 @@ use Mirocode\GitReleaseMan\Version;
 
 class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, GitServiceInterface
 {
+    const ADAPTER_NAME = 'gitlab';
+
     /**
      * @var Client
      */
