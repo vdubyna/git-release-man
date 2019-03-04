@@ -13,13 +13,13 @@ use Mirocode\GitReleaseMan\ExitException as ExitException;
 class BuildCommand extends Command
 {
     protected $allowedActions = [
-        'init'                     => 'initAction',
-        'release-candidate'        => 'releaseCandidateAction',
-        'remove-release-candidate'  => 'removeReleaseCandidateAction',
-        'release-stable'           => 'releaseStableAction',
-        'latest-release-stable'    => 'latestReleaseStableAction',
-        'latest-release-candidate' => 'latestReleaseCandidateAction',
-        'features-list'            => 'featuresListAction',
+        'init'                      => 'initAction',
+        'release-candidate'         => 'releaseCandidateAction',
+        'remove-release-candidates' => 'removeReleaseCandidatesAction', //todo not implemented yet
+        'release-stable'            => 'releaseStableAction',
+        'latest-release-stable'     => 'latestReleaseStableAction',
+        'latest-release-candidate'  => 'latestReleaseCandidateAction',
+        'features-list'             => 'featuresListAction',
     ];
 
     protected function configure()

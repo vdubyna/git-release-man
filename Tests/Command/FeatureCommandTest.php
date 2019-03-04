@@ -13,7 +13,6 @@ use Symfony\Component\Console\Application;
 
 class FeatureCommandTest extends TestCase
 {
-    const DEFAULT_FEATURE_NAME = 'feature-123-my-cool-gear';
 
     protected function setUp()
     {
@@ -27,14 +26,14 @@ class FeatureCommandTest extends TestCase
         $commandTester->execute(array(
             'command' => $command->getName(),
             'action'  => 'start',
-            '--name'  => self::DEFAULT_FEATURE_NAME,
+            '--name'  => 'feature-123-my-cool-gear',
         ), array('interactive' => false));
 
         $output = $commandTester->getDisplay();
         $this->assertContains('Start new feature', $output);
 
         $feature = $command->getFeature();
-        $this->assertEquals(self::DEFAULT_FEATURE_NAME, $feature->getName());
+        $this->assertEquals('feature-123-my-cool-gear', $feature->getName());
         $this->assertEquals(Feature::STATUS_NEW, $feature->getStatus());
     }
 
@@ -77,6 +76,7 @@ class FeatureCommandTest extends TestCase
 
     /**
      * @return FeatureCommand
+     * @throws \Mirocode\GitReleaseMan\ExitException
      */
     public function getFeatureCommandWithNewFeature()
     {
@@ -87,7 +87,7 @@ class FeatureCommandTest extends TestCase
         /** @var GitAdapterAbstract|\PHPUnit_Framework_MockObject_MockObject $gitAdapter */
         $gitAdapter = $this->getMockForAbstractClass(GitAdapterAbstract::class, array($configuration));
 
-        $feature = new Feature(self::DEFAULT_FEATURE_NAME);
+        $feature = new Feature('feature-123-my-cool-gear');
         $feature->setStatus(Feature::STATUS_NEW);
 
         $gitAdapter->expects($this->once())

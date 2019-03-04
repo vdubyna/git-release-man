@@ -141,6 +141,17 @@ abstract class AbstractCommand extends Command
     }
 
     /**
+     * @param SymfonyStyle $styleHelper
+     *
+     * @return AbstractCommand
+     */
+    public function setStyleHelper(SymfonyStyle $styleHelper)
+    {
+        $this->styleHelper = $styleHelper;
+        return $this;
+    }
+
+    /**
      * @param string $message
      *
      * @return void
