@@ -205,7 +205,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function startReleaseCandidate(Release $release)
     {
         $masterBranch = $this->getConfiguration()->getMasterBranch();
-        $cmd = "git checkout -B {$masterBranch} && git checkout -B {$release->getBranch()}";
+        $cmd = "git checkout -b {$masterBranch} && git checkout -b {$release->getBranch()}";
         $this->execShellCommand($cmd);
         $release->setStatus(Release::STATUS_STARTED);
 
@@ -246,7 +246,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getFeaturesList()
     {
         $featurePrefix = $this->getConfiguration()->getFeaturePrefix();
-        $features      = $this->execShellCommand('git branch --list "' . $featurePrefix . '*"');
+        $features      = $this->execShellCommand('git branch --list "*-' . $featurePrefix . '*"');
 
         return array_map(function ($featureName) {
             $featureName = trim(str_replace('*', '', $featureName));
@@ -309,7 +309,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
         }
 
         $masterBranch = $this->getConfiguration()->getMasterBranch();
-        $this->execShellCommand("git checkout {$masterBranch} && git checkout -B {$feature->getName()}");
+        $this->execShellCommand("git checkout {$masterBranch} && git checkout -b {$feature->getName()}");
         $branchCommit = $this->execShellCommand("git log -1 --pretty=format:\"%H\" {$feature->getName()}");
 
         $feature->setStatus(Feature::STATUS_STARTED)

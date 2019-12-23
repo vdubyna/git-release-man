@@ -2,7 +2,6 @@
 
 namespace Mirocode\GitReleaseMan;
 
-use Mirocode\GitReleaseMan\GitAdapter\GithubAdapter;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
