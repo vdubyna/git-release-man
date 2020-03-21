@@ -2,7 +2,6 @@
 
 namespace Mirocode\GitReleaseMan\Command;
 
-use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;

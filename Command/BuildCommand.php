@@ -2,7 +2,6 @@
 
 namespace Mirocode\GitReleaseMan\Command;
 
-use Github\Api\Issue\Labels;
 use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\Release;
@@ -27,7 +26,7 @@ class BuildCommand extends Command
         parent::configure();
         $this->setName('git-release:build')
              ->addArgument('action', InputArgument::REQUIRED, 'Action')
-             ->setDescription('Init git release man')
+             ->setDescription('Init git release man. Manage releases') // todo move init to own command
              ->setHelp('Build actions: ' . implode(', ', array_keys($this->allowedActions)));
     }
 
@@ -93,8 +92,8 @@ class BuildCommand extends Command
 
         foreach ($features as $feature) {
             $this->getGitAdapter()->pushFeatureIntoReleaseCandidate($releaseCandidate, $feature);
-            $featureIdentifier = ($feature->getMergeRequest())
-                ? $feature->getMergeRequest()->getNumber() : $feature->getName();
+            $featureIdentifier = ($feature->getReleaseRequest())
+                ? $feature->getReleaseRequest()->getNumber() : $feature->getName();
             $this->getStyleHelper()->success("Feature {$featureIdentifier} " .
                 "- {$feature->getName()} pushed into release {$releaseCandidate->getVersion()}");
         }
@@ -127,16 +126,16 @@ class BuildCommand extends Command
 
         foreach ($features as $feature) {
             if (!$this->getGitAdapter()->isFeatureReadyForRelease($feature, $releaseStable)) {
-                throw new ExitException("Feature's '{$feature->getName()}' Merge Request " .
-                    "#{$feature->getMergeRequest()->getNumber()} {$feature->getMergeRequest()->getName()} " .
+                throw new ExitException("Feature's '{$feature->getName()}' Release Request " .
+                    "#{$feature->getReleaseRequest()->getNumber()} {$feature->getReleaseRequest()->getName()} " .
                     "can not be merged. Please, fix it before this action.");
             }
         }
 
         foreach ($features as $feature) {
             // TODO move this logic to feature
-            $featureIdentifier = ($feature->getMergeRequest())
-                ? $feature->getMergeRequest()->getNumber() : $feature->getName();
+            $featureIdentifier = ($feature->getReleaseRequest())
+                ? $feature->getReleaseRequest()->getNumber() : $feature->getName();
             $this->getStyleHelper()->note("Feature {$featureIdentifier} " .
                 "- {$feature->getName()} try merge into release {$releaseStable->getVersion()}");
             $this->getGitAdapter()->pushFeatureIntoReleaseStable($releaseStable, $feature);
@@ -158,14 +157,14 @@ class BuildCommand extends Command
     public function featuresListAction()
     {
         $features = $this->getGitAdapter()->getFeaturesList();
-        $headers  = array('Feature Name', 'Labels', 'Merge Request');
+        $headers  = array('Feature Name', 'Labels', 'Release Request');
 
         $rows = array_map(function (Feature $feature) {
-            if (empty($feature->getMergeRequest())) {
-                $mergeRequestMessage = "There is no open MergeRequest";
+            if (empty($feature->getReleaseRequest())) {
+                $mergeRequestMessage = "There is no open Release Request";
             } else {
-                $mergeRequest = $feature->getMergeRequest();
-                $mergeRequestMessage = "Merge Request: #{$mergeRequest->getNumber()} - {$mergeRequest->getName()}\n" .
+                $mergeRequest = $feature->getReleaseRequest();
+                $mergeRequestMessage = "Release Request: #{$mergeRequest->getNumber()} - {$mergeRequest->getName()}\n" .
                     "{$mergeRequest->getUrl()}";
             }
 

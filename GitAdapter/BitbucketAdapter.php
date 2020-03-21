@@ -90,7 +90,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
             $mergeRequest = $this->getMergeRequestByFeature($feature);
 
             if ($mergeRequest && $mergeRequest->getNumber()) {
-                $feature->setMergeRequest($mergeRequest);
+                $feature->setReleaseRequest($mergeRequest);
 
                 $labels = $this->getFeatureLabels($feature);
                 $feature->setLabels($labels);
@@ -117,7 +117,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $mergeRequestsApi = $this->getApiClient()->api('Repositories\PullRequests');
 
         /** @var MergeRequest $featureMergeRequest */
-        $featureMergeRequest = $feature->getMergeRequest();
+        $featureMergeRequest = $feature->getReleaseRequest();
 
         $mergeRequestsApi->update($username, $repository, $featureMergeRequest->getNumber(), [
             'title'       => "{{$label}} " . $featureMergeRequest->getName(),
@@ -141,13 +141,13 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         ];
 
         array_walk($labels, function($label) use ($feature) {
-            $name = str_replace("{{$label}}", '', $feature->getMergeRequest()->getName());
-            $feature->getMergeRequest()->setName(trim($name));
+            $name = str_replace("{{$label}}", '', $feature->getReleaseRequest()->getName());
+            $feature->getReleaseRequest()->setName(trim($name));
         });
 
-        $mergeRequestsApi->update($username, $repository, $feature->getMergeRequest()->getNumber(), [
-            'title'       => $feature->getMergeRequest()->getName(),
-            'destination' => ['branch' => ['name' => $feature->getMergeRequest()->getTargetBranch()]]
+        $mergeRequestsApi->update($username, $repository, $feature->getReleaseRequest()->getNumber(), [
+            'title'       => $feature->getReleaseRequest()->getName(),
+            'destination' => ['branch' => ['name' => $feature->getReleaseRequest()->getTargetBranch()]]
         ]);
 
         $feature->setLabels([]);
@@ -198,13 +198,13 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
         $result = $mergeRequestsApi->accept(
             $username,
             $repository,
-            $feature->getMergeRequest()->getNumber(),
+            $feature->getReleaseRequest()->getNumber(),
             ['message' => 'Merge Pull Request']
         );
         $result = GuzzleHttp\json_decode($result->getContent(), true);
 
         if (isset($result['type']) && $result['type'] === 'error') {
-            $mergeRequestsApi->decline($username, $repository, $feature->getMergeRequest()->getNumber());
+            $mergeRequestsApi->decline($username, $repository, $feature->getReleaseRequest()->getNumber());
             throw new ExitException(
                 "Feature {$feature->getName()} can not be merged into Release {$release->getVersion()}");
         }
@@ -326,9 +326,9 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function markFeatureReadyForReleaseCandidate(Feature $feature)
     {
-        if (!$feature->getMergeRequest()) {
+        if (!$feature->getReleaseRequest()) {
             $mergeRequest = $this->openMergeRequestByFeature($feature);
-            $feature->setMergeRequest($mergeRequest);
+            $feature->setReleaseRequest($mergeRequest);
         }
 
         return parent::markFeatureReadyForReleaseCandidate($feature);
@@ -532,8 +532,8 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function getFeatureLabels(Feature $feature)
     {
-        if ($feature->getMergeRequest()->getNumber()) {
-            preg_match_all('/\{[A-Z-]*\}/', $feature->getMergeRequest()->getName(), $matches);
+        if ($feature->getReleaseRequest()->getNumber()) {
+            preg_match_all('/\{[A-Z-]*\}/', $feature->getReleaseRequest()->getName(), $matches);
             if (!empty($matches)) {
                 $labels = array_map(function ($label) {
                     return str_replace(['{', '}'], '', $label);
@@ -622,7 +622,7 @@ class BitbucketAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function isFeatureReadyForRelease(Feature $feature, Release $release)
     {
-        return $feature->getMergeRequest()->getIsMergeable();
+        return $feature->getReleaseRequest()->getIsMergeable();
     }
 
     /**

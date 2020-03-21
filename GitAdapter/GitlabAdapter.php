@@ -109,7 +109,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
         /** @var MergeRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
         $mergeRequestsApi
-            ->update($repository, $feature->getMergeRequest()->getNumber(),
+            ->update($repository, $feature->getReleaseRequest()->getNumber(),
                 ['labels' => implode(',', $feature->getLabels()) . ',' . $label]);
 
         $feature->addLabel($label);
@@ -124,7 +124,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function getFeatureLabels(Feature $feature)
     {
-        if (!$feature->getMergeRequest()->getNumber()) {
+        if (!$feature->getReleaseRequest()->getNumber()) {
             return [];
         }
 
@@ -221,9 +221,9 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function markFeatureReadyForReleaseCandidate(Feature $feature)
     {
-        if (!$feature->getMergeRequest()) {
+        if (!$feature->getReleaseRequest()) {
             $mergeRequest = $this->openMergeRequestByFeature($feature);
-            $feature->setMergeRequest($mergeRequest);
+            $feature->setReleaseRequest($mergeRequest);
         }
 
         return parent::markFeatureReadyForReleaseCandidate($feature);
@@ -309,7 +309,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
 
         /** @var MergeRequests $mergeRequestsApi */
         $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
-        $mergeRequestsApi->merge($projectInfo['id'], $feature->getMergeRequest()->getNumber());
+        $mergeRequestsApi->merge($projectInfo['id'], $feature->getReleaseRequest()->getNumber());
 
         $release->addFeature($feature);
     }
@@ -322,7 +322,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function isFeatureReadyForRelease(Feature $feature, Release $release)
     {
-        return $feature->getMergeRequest()->getIsMergeable();
+        return $feature->getReleaseRequest()->getIsMergeable();
     }
 
     /**
@@ -486,7 +486,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             $mergeRequest = $this->getMergeRequestByFeature($feature);
 
             if ($mergeRequest && $mergeRequest->getNumber()) {
-                $feature->setMergeRequest($mergeRequest);
+                $feature->setReleaseRequest($mergeRequest);
 
                 $feature->setLabels($this->getFeatureLabels($feature));
 
@@ -523,7 +523,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
      */
     public function removeLabelsFromFeature(Feature $feature)
     {
-        if ($feature->getMergeRequest()) {
+        if ($feature->getReleaseRequest()) {
             $repository = $this->getConfiguration()->getRepository();
 
             $labels = [
@@ -540,7 +540,7 @@ class GitlabAdapter extends GitAdapterAbstract implements GitAdapterInterface, G
             $mergeRequestsApi = $this->getApiClient()->api('merge_requests');
             $mergeRequestsApi->update(
                 $projectInfo['id'],
-                $feature->getMergeRequest()->getNumber(),
+                $feature->getReleaseRequest()->getNumber(),
                 ['labels' => '']
             );
         }

@@ -67,7 +67,7 @@ class Configuration
                 }
 
                 if (isset($configuration['master-branch'])) {
-                    $this->releaseStableLabel = $configuration['master-branch'];
+                    $this->masterBranch = $configuration['master-branch'];
                 }
 
                 if (isset($configuration['feature-prefix'])) {

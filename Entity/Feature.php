@@ -14,7 +14,7 @@ class Feature
     protected $status;
     protected $commit;
     protected $labels = [];
-    protected $mergeRequest;
+    protected $releaseRequest;
 
     /**
      * Feature constructor.
@@ -103,13 +103,13 @@ class Feature
     }
 
     /**
-     * @param MergeRequest $mergeRequest
+     * @param MergeRequest $releaseRequest
      *
      * @return Feature
      */
-    public function setMergeRequest(MergeRequest $mergeRequest)
+    public function setReleaseRequest(MergeRequest $releaseRequest)
     {
-        $this->mergeRequest = $mergeRequest;
+        $this->releaseRequest = $releaseRequest;
 
         return $this;
     }
@@ -117,8 +117,8 @@ class Feature
     /**
      * @return MergeRequest
      */
-    public function getMergeRequest()
+    public function getReleaseRequest()
     {
-        return $this->mergeRequest;
+        return $this->releaseRequest;
     }
 }

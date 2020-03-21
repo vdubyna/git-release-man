@@ -81,7 +81,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function addLabelToFeature(Feature $feature, $label)
     {
         $testLabel = $label . "--{$feature->getName()}";
-        $this->execShellCommand("git tag -f {$testLabel}");
+        $this->execShellCommand("git checkout -B {$feature->getName()} && git tag -f {$testLabel}");
     }
 
     /**
@@ -185,15 +185,15 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     {
         $result = $this->execShellCommand("git show-ref --{$versionType}", []);
         if ($result) {
-            $items  = array_map(function ($item) {
-                $parts = explode('/', $item);
+            $items  = array_map(function ($item) use ($versionType) {
+                $parts = explode("refs/{$versionType}/", $item);
                 return end($parts);
             }, explode("\n", $result));
         } else {
             $items = [];
         }
 
-        return $items;
+        return array_filter($items);
     }
 
     /**
@@ -246,7 +246,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getFeaturesList()
     {
         $featurePrefix = $this->getConfiguration()->getFeaturePrefix();
-        $features      = $this->execShellCommand('git branch --list "' . $featurePrefix . '*"');
+        $features      = $this->execShellCommand('git branch --list "*-' . $featurePrefix . '*"');
 
         return array_map(function ($featureName) {
             $featureName = trim(str_replace('*', '', $featureName));
@@ -309,7 +309,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
         }
 
         $masterBranch = $this->getConfiguration()->getMasterBranch();
-        $this->execShellCommand("git checkout {$masterBranch} && git checkout -B {$feature->getName()}");
+        $this->execShellCommand("git checkout {$masterBranch} && git checkout -b {$feature->getName()}");
         $branchCommit = $this->execShellCommand("git log -1 --pretty=format:\"%H\" {$feature->getName()}");
 
         $feature->setStatus(Feature::STATUS_STARTED)
