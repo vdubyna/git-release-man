@@ -11,11 +11,6 @@ use Symfony\Component\Console\Style\StyleInterface;
 
 class GitlocalAdapterTest extends TestCase
 {
-    protected function setUp()
-    {
-        $this->markTestSkipped('Test not ready yet');
-    }
-
     /**
      * @throws ExitException
      */

@@ -1,0 +1,6 @@
+default:
+  suites:
+    commands:
+      contexts:
+        - CommandLineProcessContext
+      paths: [ %paths.base%/features/commands ]

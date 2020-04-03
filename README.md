@@ -106,3 +106,10 @@ travis encrypt api_key_here
 # Add api key variable to env
 travis env set GITHUBKEY api_key_here --private -r vdubyna/git-release-man
 ```
+
+
+Gitflow schema
+
+feature - branch
+development stream ?
+

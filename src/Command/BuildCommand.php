@@ -14,7 +14,7 @@ class BuildCommand extends Command
     protected $allowedActions = [
         'init'                     => 'initAction',
         'release-candidate'        => 'releaseCandidateAction',
-        'remove-release-candidate'  => 'removeReleaseCandidateAction',
+        'remove-release-candidate' => 'removeReleaseCandidateAction',
         'release-stable'           => 'releaseStableAction',
         'latest-release-stable'    => 'latestReleaseStableAction',
         'latest-release-candidate' => 'latestReleaseCandidateAction',
@@ -64,8 +64,11 @@ class BuildCommand extends Command
      */
     public function releaseCandidateAction()
     {
-        $this->confirmOrExit('Do you want to build Release Candidate for testing?');
-        $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()->getLabelForReleaseCandidate());
+        if (!$this->forceExecute) {
+            $this->confirmOrExit('Do you want to build Release Candidate for testing?');
+        }
+        $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()
+                                                                    ->getLabelForReleaseCandidate());
 
         if (empty($features)) {
             $this->getStyleHelper()->error('There is no features ready for build.');
@@ -73,8 +76,14 @@ class BuildCommand extends Command
         }
 
         $stableVersion = $this->getGitAdapter()->getReleaseStableVersion();
-        $versionType = $this->askAndGetValueOrExit(
-            "Current stable version {$stableVersion->__toString()}. What release type[MINOR,MAJOR,PATCH]:", Version::TYPE_PATCH);
+        if (!$this->forceExecute) {
+            $versionType = $this->askAndGetValueOrExit(
+                "Current stable version {$stableVersion->__toString()}. What release type[MINOR,MAJOR,PATCH]:",
+                Version::TYPE_PATCH
+            );
+        } else {
+            $versionType = Version::TYPE_PATCH;
+        }
         $releaseCandidateVersion = $this->getGitAdapter()->getReleaseCandidateVersion($versionType);
         $releaseCandidate = new Release(
             $releaseCandidateVersion,
@@ -110,7 +119,9 @@ class BuildCommand extends Command
      */
     public function releaseStableAction()
     {
-        $this->confirmOrExit('Do you want to build Release for production?');
+        if (!$this->forceExecute) {
+            $this->confirmOrExit('Do you want to build Release for production?');
+        }
         $features = $this->getGitAdapter()->getFeaturesByLabel($this->getConfiguration()->getLabelForReleaseStable());
 
         if (empty($features)) {
@@ -161,21 +172,21 @@ class BuildCommand extends Command
 
         $rows = array_map(function (Feature $feature) {
             if (empty($feature->getReleaseRequest())) {
-                $mergeRequestMessage = "There is no open Release Request";
+                $releaseRequestMessage = "There is no open Release Request";
             } else {
-                $mergeRequest = $feature->getReleaseRequest();
-                $mergeRequestMessage = "Release Request: #{$mergeRequest->getNumber()} - {$mergeRequest->getName()}\n" .
-                    "{$mergeRequest->getUrl()}";
+                $releaseRequest = $feature->getReleaseRequest();
+                $releaseRequestMessage = "Release Request: #{$releaseRequest->getNumber()} - {$releaseRequest->getName()}\n" .
+                    "{$releaseRequest->getUrl()}";
             }
 
             return [
                 $feature->getName(),
                 implode(', ', $feature->getLabels()),
-                $mergeRequestMessage,
+                $releaseRequestMessage,
             ];
         }, $features);
 
-        $this->getStyleHelper()->section("Features list");
+        $this->getStyleHelper()->success("Features list");
         $this->getStyleHelper()->table($headers, $rows);
     }
 
@@ -185,6 +196,7 @@ class BuildCommand extends Command
     public function latestReleaseStableAction()
     {
         $latestReleaseTag = $this->getGitAdapter()->getLatestReleaseStableTag();
+        $this->getStyleHelper()->success('Latest stable release tag');
         $this->getStyleHelper()->note($latestReleaseTag);
     }
 
@@ -194,6 +206,7 @@ class BuildCommand extends Command
     public function latestReleaseCandidateAction()
     {
         $latestTestReleaseTag = $this->getGitAdapter()->getLatestReleaseCandidateTag();
+        $this->getStyleHelper()->success('Latest candidate release tag');
         $this->getStyleHelper()->note($latestTestReleaseTag);
     }
 }

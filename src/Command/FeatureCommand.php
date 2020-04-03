@@ -87,7 +87,10 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Start feature {$feature->getName()}");
-        $this->confirmOrExit("Do you want to continue this operation:");
+
+        if (!$this->forceExecute) {
+            $this->confirmOrExit("Do you want to continue this operation:");
+        }
 
         if ($feature->getStatus() === Feature::STATUS_NEW) {
             $feature = $this->getGitAdapter()->startFeature($feature);
@@ -125,8 +128,10 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Close feature \"{$feature->getName()}\".");
-        $this->getStyleHelper()->warning("Delete branch will automatically close Merge Request if it exists/open");
-        $this->confirmOrExit("Do you want to continue this operation:");
+        if (!$this->forceExecute) {
+            $this->getStyleHelper()->warning("Delete branch will automatically close Merge Request if it exists/open");
+            $this->confirmOrExit("Do you want to continue this operation:");
+        }
 
         $feature = $this->getGitAdapter()->closeFeature($feature);
 
@@ -143,15 +148,18 @@ class FeatureCommand extends Command
     {
         $feature = $this->getFeature();
 
-        $this->getStyleHelper()->title("Reset feature \"{$feature->getName()}\".");
-        $this->confirmOrExit("Do you want to continue this operation:");
+        if (!$this->forceExecute) {
+            $this->getStyleHelper()->title("Reset feature \"{$feature->getName()}\".");
+            $this->confirmOrExit("Do you want to continue this operation:");
+        }
 
         $this->getGitAdapter()->markFeatureAsNew($feature);
         $this->getStyleHelper()->success("Feature \"{$feature->getName()}\" was reset.");
     }
 
     /**
-     * Open Pull Request to make feature available for QA testing
+     * Mark feature as release candidate to make feature available for QA testing
+     *
      * @throws ExitException
      */
     public function releaseCandidateAction()
@@ -159,7 +167,10 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for release-candidate build");
-        $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" release-candidate:");
+
+        if (!$this->forceExecute) {
+            $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" release-candidate:");
+        }
 
         if ($feature->getStatus() === Feature::STATUS_NEW) {
             $this->getStyleHelper()
@@ -191,8 +202,9 @@ class FeatureCommand extends Command
         $feature = $this->getFeature();
 
         $this->getStyleHelper()->title("Mark feature \"{$feature->getName()}\" ready for release-stable build");
-        $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" release-stable:");
-
+        if (!$this->forceExecute) {
+            $this->confirmOrExit("Do you want to mark feature \"{$feature->getName()}\" release-stable:");
+        }
         if ($feature->getStatus() === Feature::STATUS_NEW || $feature->getStatus() === Feature::STATUS_STARTED) {
             $this->getStyleHelper()
                  ->warning(

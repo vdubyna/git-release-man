@@ -15,8 +15,11 @@ use Mirocode\GitReleaseMan\Configuration as GitReleaseManConfiguration;
 
 abstract class AbstractCommand extends Command
 {
-    protected $allowedActions = array();
+    protected $allowedActions = [];
 
+    /**
+     * @var GitReleaseManConfiguration
+     */
     protected $configuration;
 
     /**
@@ -28,6 +31,11 @@ abstract class AbstractCommand extends Command
      * @var SymfonyStyle
      */
     protected $styleHelper;
+
+    /**
+     * @var bool
+     */
+    protected $forceExecute;
 
     /**
      * @return GitAdapterAbstract
@@ -73,7 +81,8 @@ abstract class AbstractCommand extends Command
         $this->addOption('gitadapter', null, InputOption::VALUE_OPTIONAL, "Git Adapter")
             ->addOption('username', null, InputOption::VALUE_OPTIONAL, "Username")
             ->addOption('token', null, InputOption::VALUE_OPTIONAL, "Token")
-            ->addOption('repository', null, InputOption::VALUE_OPTIONAL, "Repository name");
+            ->addOption('repository', null, InputOption::VALUE_OPTIONAL, "Repository name")
+            ->addOption('force', null, InputOption::VALUE_OPTIONAL, "Force execution");
 
         parent::configure();
     }
@@ -107,6 +116,10 @@ abstract class AbstractCommand extends Command
         }
         if ($input->getOption('repository')) {
             $this->getConfiguration()->setRepository($input->getOption('repository'));
+        }
+
+        if ($input->getOption('force')) {
+            $this->forceExecute = (bool) $input->getOption('force');
         }
 
         if (key_exists($action, $this->allowedActions) && method_exists($this, $this->allowedActions[$action])) {

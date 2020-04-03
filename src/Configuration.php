@@ -2,7 +2,6 @@
 
 namespace Mirocode\GitReleaseMan;
 
-use Mirocode\GitReleaseMan\GitAdapter\GithubAdapter;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
@@ -21,7 +20,8 @@ class Configuration
     protected $isDebug;
 
     const CONFIGURATION_FILENAME = '.git-release-man.yml';
-    const DEFAULT_FEATURE_PREFIX = 'feature-';
+    const DEFAULT_FEATURE_PREFIX = 'feature/';
+    const DEFAULT_GIT_ADAPTER = 'gitlocal';
 
     const DEFAULT_VERSION = '1.0.0';
 
@@ -110,7 +110,7 @@ class Configuration
 
     public function getGitAdapter()
     {
-        return $this->gitAdapter;
+        return (empty($this->gitAdapter)) ? self::DEFAULT_GIT_ADAPTER : $this->gitAdapter;
     }
 
     public function getLabelForReleaseCandidate()

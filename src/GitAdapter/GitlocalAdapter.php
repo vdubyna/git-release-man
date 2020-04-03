@@ -232,7 +232,8 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
      */
     public function closeFeature(Feature $feature)
     {
-        $this->execShellCommand("git branch -D {$feature->getName()}");
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+        $this->execShellCommand("git checkout -B {$masterBranch} && git branch -D {$feature->getName()}");
         $feature->setStatus(Feature::STATUS_CLOSED);
 
         return $feature;
@@ -246,7 +247,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function getFeaturesList()
     {
         $featurePrefix = $this->getConfiguration()->getFeaturePrefix();
-        $features      = $this->execShellCommand('git branch --list "*-' . $featurePrefix . '*"');
+        $features      = $this->execShellCommand("git branch --list {$featurePrefix}*");
 
         return array_map(function ($featureName) {
             $featureName = trim(str_replace('*', '', $featureName));
@@ -270,7 +271,8 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
             }
         });
 
-        return (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+        $sortedVersions = Semver::sort($versions);
+        return (empty($versions)) ? Configuration::DEFAULT_VERSION : end($sortedVersions);
     }
 
     /**
@@ -289,7 +291,8 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
             }
         });
 
-        return (empty($versions)) ? Configuration::DEFAULT_VERSION : end(Semver::sort($versions));
+        $sortedVersions = Semver::sort($versions);
+        return (empty($versions)) ? Configuration::DEFAULT_VERSION : end($sortedVersions);
     }
 
     /**
