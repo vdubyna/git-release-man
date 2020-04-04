@@ -14,18 +14,7 @@
 
     <testsuites>
         <testsuite name="Mirocode GitReleaseMan Test Suite">
-            <directory>./Tests/</directory>
+            <directory>./src/Tests/</directory>
         </testsuite>
     </testsuites>
-
-    <filter>
-        <whitelist addUncoveredFilesFromWhitelist="true">
-            <directory suffix="php">./</directory>
-            <exclude>
-                <directory>./Tests</directory>
-                <directory>./vendor</directory>
-                <directory>./bin</directory>
-            </exclude>
-        </whitelist>
-    </filter>
 </phpunit>
