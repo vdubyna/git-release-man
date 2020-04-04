@@ -164,6 +164,15 @@ abstract class GitAdapterAbstract implements GitAdapterInterface
     }
 
     /**
+     * Remove release candidate
+     *
+     * @param Release $release
+     *
+     * @return void
+     */
+    abstract public function removeReleaseCandidate(Release $release): void;
+
+    /**
      * @return StyleInterface
      */
     protected function getStyleHelper()

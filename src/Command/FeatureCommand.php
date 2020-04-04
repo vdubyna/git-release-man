@@ -37,6 +37,7 @@ class FeatureCommand extends Command
     protected function configure()
     {
         $this->setName('git-release:feature')
+            ->setAliases(['g:f'])
              ->addArgument('action', InputArgument::REQUIRED,
                  'Action [' . implode(', ', array_keys($this->allowedActions)) . ']')
              ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Feature Name')

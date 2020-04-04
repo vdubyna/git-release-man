@@ -4,6 +4,7 @@ namespace Mirocode\GitReleaseMan\GitAdapter;
 
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\Release;
+use Mirocode\GitReleaseMan\MergeException;
 use Mirocode\GitReleaseMan\Version;
 
 interface GitAdapterInterface
@@ -82,6 +83,7 @@ interface GitAdapterInterface
      * @param Feature $feature
      * @param Release $release
      *
+     * @throws MergeException
      * @return bool
      */
     public function isFeatureReadyForRelease(Feature $feature, Release $release);

@@ -5,9 +5,10 @@ namespace Mirocode\GitReleaseMan\Command;
 use Mirocode\GitReleaseMan\Command\AbstractCommand as Command;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\Release;
+use Mirocode\GitReleaseMan\ExitException;
+use Mirocode\GitReleaseMan\MergeException;
 use Mirocode\GitReleaseMan\Version;
 use Symfony\Component\Console\Input\InputArgument;
-use Mirocode\GitReleaseMan\ExitException as ExitException;
 
 class BuildCommand extends Command
 {
@@ -25,8 +26,9 @@ class BuildCommand extends Command
     {
         parent::configure();
         $this->setName('git-release:build')
+             ->setAliases(['g:b'])
              ->addArgument('action', InputArgument::REQUIRED, 'Action')
-             ->setDescription('Init git release man. Manage releases') // todo move init to own command
+             ->setDescription('Manage release based on semver workflow.')
              ->setHelp('Build actions: ' . implode(', ', array_keys($this->allowedActions)));
     }
 
@@ -93,9 +95,11 @@ class BuildCommand extends Command
         $releaseCandidate = $this->getGitAdapter()->startReleaseCandidate($releaseCandidate);
 
         foreach ($features as $feature) {
-            if (!$this->getGitAdapter()->isFeatureReadyForRelease($feature, $releaseCandidate)) {
-                throw new ExitException(
-                    "Feature '{$feature->getName()}' can not be merged. Please, fix it before this action.");
+            try {
+                $this->getGitAdapter()->isFeatureReadyForRelease($feature, $releaseCandidate);
+            } catch (MergeException $e) {
+                $this->getGitAdapter()->removeReleaseCandidate($releaseCandidate);
+                throw new ExitException($e);
             }
         }
 
@@ -136,15 +140,14 @@ class BuildCommand extends Command
         );
 
         foreach ($features as $feature) {
-            if (!$this->getGitAdapter()->isFeatureReadyForRelease($feature, $releaseStable)) {
-                throw new ExitException("Feature's '{$feature->getName()}' Release Request " .
-                    "#{$feature->getReleaseRequest()->getNumber()} {$feature->getReleaseRequest()->getName()} " .
-                    "can not be merged. Please, fix it before this action.");
+            try {
+                $this->getGitAdapter()->isFeatureReadyForRelease($feature, $releaseStable);
+            } catch (MergeException $e) {
+                throw new ExitException($e);
             }
         }
 
         foreach ($features as $feature) {
-            // TODO move this logic to feature
             $featureIdentifier = ($feature->getReleaseRequest())
                 ? $feature->getReleaseRequest()->getNumber() : $feature->getName();
             $this->getStyleHelper()->note("Feature {$featureIdentifier} " .

@@ -71,7 +71,7 @@ class CommandLineProcessContext implements Context
     }
 
     /**
-     * @When /^I run git\-release\-man command "([^"]*)" with action "([^"]*)" and options "([^"]*)"$/
+     * @When /^I run g\-man command "([^"]*)" with action "([^"]*)" and options "([^"]*)"$/
      */
     public function iRunGitReleaseManCommandFeatureWithOptions($command, $action, $options)
     {
@@ -147,5 +147,43 @@ class CommandLineProcessContext implements Context
     public function iShouldSeeLatestReleaseStableVersion($version)
     {
         assertContains($version, implode('', $this->output));
+    }
+
+    /**
+     * @Then /^I should see error "([^"]*)"$/
+     */
+    public function iShouldSeeError($error)
+    {
+        assertContains($error, implode('', $this->output));
+    }
+
+    /**
+     * @Given /^Release candidate should not be created$/
+     */
+    public function releaseCandidateShouldNotBeCreated()
+    {
+        exec('git branch', $output);
+        print_r($output);
+        assertNotContains('-RC1', implode('', $output));
+    }
+
+    /**
+     * @When /^I run g\-man failed command "([^"]*)" with action "([^"]*)" and options "([^"]*)"$/
+     */
+    public function iRunGManFailedCommandWithActionAndOptions($command, $action, $options)
+    {
+        exec("php -f ../bin/git-release-man {$command} {$action} {$options}", $output);
+        print_r($output);
+        $this->output = $output;
+    }
+
+    /**
+     * @Given /^I do updates "([^"]*)" in branch "([^"]*)" and commit them$/
+     */
+    public function iDoUpdatesInBranchAndCommitThem($update, $branch)
+    {
+        exec("git checkout {$branch} && echo '{$update}' >> README.md ' .
+            '&& git add README.md && git commit -m'update'", $output);
+        $this->output = $output;
     }
 }

@@ -8,6 +8,7 @@ use Mirocode\GitReleaseMan\Configuration;
 use Mirocode\GitReleaseMan\Entity\Feature;
 use Mirocode\GitReleaseMan\Entity\Release;
 use Mirocode\GitReleaseMan\ExitException;
+use Mirocode\GitReleaseMan\MergeException;
 use Mirocode\GitReleaseMan\Version;
 use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
@@ -137,17 +138,24 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
      * @param Release $release
      *
      * @return bool
+     * @throws MergeException
      * @throws ExitException
      */
     public function isFeatureReadyForRelease(Feature $feature, Release $release)
     {
         try {
-            $this->execShellCommand("git checkout {$release->getBranch()} && git merge {$feature->getName()}");
+            $output = $this->execShellCommand(
+                "git checkout {$release->getBranch()} && git merge {$feature->getName()}");
+            if (strpos($output, 'Already up to date.') !== false) {
+                throw new MergeException(
+                    "Feature can not be merged because there is no updates. Feature: {$feature->getName()}");
+            }
             $this->execShellCommand("git reset --hard ORIG_HEAD");
             return true;
         } catch (ExitException $e) {
             $this->execShellCommand("git merge --abort");
-            return false;
+            throw new MergeException(
+                "Feature can not be merged because of the conflicts. Feature: {$feature->getName()}");
         }
     }
 
@@ -205,7 +213,7 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
     public function startReleaseCandidate(Release $release)
     {
         $masterBranch = $this->getConfiguration()->getMasterBranch();
-        $cmd = "git checkout -B {$masterBranch} && git checkout -B {$release->getBranch()}";
+        $cmd = "git checkout {$masterBranch} && git checkout -b {$release->getBranch()}";
         $this->execShellCommand($cmd);
         $release->setStatus(Release::STATUS_STARTED);
 
@@ -373,5 +381,16 @@ class GitlocalAdapter extends GitAdapterAbstract implements GitAdapterInterface
 
             return $defaultValue;
         }
+    }
+
+    /**
+     * @inheritDoc
+     * @throws ExitException
+     */
+    public function removeReleaseCandidate(Release $release): void
+    {
+        $masterBranch = $this->getConfiguration()->getMasterBranch();
+        $this->execShellCommand("git checkout {$masterBranch} && git branch -D {$release->getBranch()}");
+        $release->setStatus(Release::STATUS_CLOSED);
     }
 }
