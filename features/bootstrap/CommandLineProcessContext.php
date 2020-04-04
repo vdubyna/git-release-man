@@ -18,7 +18,9 @@ class CommandLineProcessContext implements Context
             echo "Make test dir. " . PHP_EOL;
             mkdir('test');
         }
-        chdir(realpath('test'));
+        system('pwd');
+        system('ls -la');
+        chdir('test');
     }
 
     /**
