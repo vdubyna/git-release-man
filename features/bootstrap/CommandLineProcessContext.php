@@ -14,15 +14,8 @@ class CommandLineProcessContext implements Context
      */
     public function moveIntoTestDir()
     {
-        system('ls -la');
-        if (!is_dir('test')) {
-            echo "Make test dir. " . PHP_EOL;
-            mkdir('test');
-        } else {
-            echo "Test dir existsn. Not create" . PHP_EOL;
-        }
-        system('pwd');
-        system('ls -la');
+        echo "Make test dir." . PHP_EOL;
+        system('mkdir -p test');
         chdir('test');
     }
 
@@ -31,15 +24,9 @@ class CommandLineProcessContext implements Context
      */
     public function moveOutOfTestDir()
     {
-        echo 'before move out ' . getcwd() . PHP_EOL;
+        echo "Delete test dir." . PHP_EOL;
         chdir(realpath('..'));
-        if (is_dir('test')) {
-            echo "Delete test dir." . PHP_EOL;
-            system('rm -rf ' . realpath('test'));
-        } else {
-            echo "No need delete test dir." . PHP_EOL;
-
-        }
+        system('rm -rf ' . realpath('test'));
     }
 
     /**
