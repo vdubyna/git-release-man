@@ -37,7 +37,7 @@ class FeatureCommand extends Command
     protected function configure()
     {
         $this->setName('git-release:feature')
-            ->setAliases(['g:f'])
+             ->setAliases(['g:f'])
              ->addArgument('action', InputArgument::REQUIRED,
                  'Action [' . implode(', ', array_keys($this->allowedActions)) . ']')
              ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Feature Name')
@@ -99,17 +99,12 @@ class FeatureCommand extends Command
                 $this->getStyleHelper()
                      ->success("Feature {$feature->getName()} successfully created.");
             }
-        } elseif ($feature->getStatus() === Feature::STATUS_STARTED) {
+        } elseif (in_array($feature->getStatus(), [
+            Feature::STATUS_STARTED, Feature::STATUS_RELEASE_CANDIDATE, Feature::STATUS_RELEASE_STABLE,
+        ])) {
             $this->getStyleHelper()
                  ->success(
-                     "Feature {$feature->getName()} already exists on {$this->getConfiguration()->getGitAdapter()}."
-                 );
-        } elseif ($feature->getStatus() === Feature::STATUS_RELEASE_CANDIDATE
-            || $feature->getStatus() === Feature::STATUS_RELEASE_STABLE
-        ) {
-            $this->getStyleHelper()
-                 ->success(
-                     "Feature {$feature->getName()} already exists on {$this->getConfiguration()->getGitAdapter()}. " .
+                     "Feature {$feature->getName()} already exists {$this->getConfiguration()->getGitAdapter()}. " .
                      "Status is {$feature->getStatus()}"
                  );
         } else {

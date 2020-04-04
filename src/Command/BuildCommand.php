@@ -178,7 +178,8 @@ class BuildCommand extends Command
                 $releaseRequestMessage = "There is no open Release Request";
             } else {
                 $releaseRequest = $feature->getReleaseRequest();
-                $releaseRequestMessage = "Release Request: #{$releaseRequest->getNumber()} - {$releaseRequest->getName()}\n" .
+                $releaseRequestMessage = "Release Request: #{$releaseRequest->getNumber()} " .
+                    "- {$releaseRequest->getName()}\n" .
                     "{$releaseRequest->getUrl()}";
             }
 

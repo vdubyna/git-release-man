@@ -178,12 +178,12 @@ class CommandLineProcessContext implements Context
     }
 
     /**
-     * @Given /^I do updates "([^"]*)" in branch "([^"]*)" and commit them$/
+     * @Given /^I do updates "([^"]*)" in file "([^"]*)" in branch "([^"]*)" and commit them$/
      */
-    public function iDoUpdatesInBranchAndCommitThem($update, $branch)
+    public function iDoUpdatesInBranchAndCommitThem($update, $file, $branch)
     {
-        exec("git checkout {$branch} && echo '{$update}' >> README.md ' .
-            '&& git add README.md && git commit -m'update'", $output);
+        exec("git checkout {$branch} && echo '{$update}' >> $file ' .
+            '&& git add {$file} && git commit -m'update'", $output);
         $this->output = $output;
     }
 }
