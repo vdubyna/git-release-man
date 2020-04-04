@@ -1,7 +1,7 @@
 language: php
 
 php:
-  - 7.1
+  - 7.2
 
 install:
   - composer install --dev --prefer-source --no-interaction
@@ -10,6 +10,7 @@ before_script:
   - chmod 775 phar-composer.phar
 script:
   - phpunit
+  - vendor/bin/behat
   - php phar-composer.phar build
 
 after_success:
