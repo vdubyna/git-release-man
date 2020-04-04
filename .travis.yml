@@ -11,6 +11,8 @@ before_script:
 script:
   - phpunit
   - vendor/bin/behat
+  - rm -rf vendor
+  - composer install --no-dev
   - php phar-composer.phar build
 
 after_success:
